@@ -15,6 +15,7 @@ export default function NouveauProduitPage() {
   const [designation, setDesignation] = useState('');
   const [prixUnitaire, setPrixUnitaire] = useState('');
   const [qteParEmballage, setQteParEmballage] = useState('');
+  const [typeVente, setTypeVente] = useState<'U' | 'C'>('U');
   const [saving, setSaving] = useState(false);
   const [erreur, setErreur] = useState('');
 
@@ -33,6 +34,7 @@ export default function NouveauProduitPage() {
         prix_unitaire: Number(prixUnitaire),
         quantite_par_emballage: Number(qteParEmballage),
         quantite_unitaire_total: 0,
+        typeVente,
         userId: user.uid,
         createdBy: user.uid,
         createdAt: serverTimestamp(),
@@ -97,6 +99,32 @@ export default function NouveauProduitPage() {
               required
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Unité de vente par défaut
+              <span className="text-gray-400 font-normal ml-1">(utilisée dans les devis et opérations)</span>
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { val: 'U', label: 'Unité', desc: 'Vendu à la pièce' },
+                { val: 'C', label: 'Carton', desc: 'Vendu par carton' },
+              ] as const).map(opt => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => setTypeVente(opt.val)}
+                  className={`flex flex-col items-start px-4 py-3 rounded-xl border-2 text-left transition-colors
+                    ${typeVente === opt.val
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                      : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                >
+                  <span className="text-sm font-semibold">{opt.label}</span>
+                  <span className="text-xs text-gray-400 mt-0.5">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {erreur && (
