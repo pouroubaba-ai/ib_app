@@ -8,7 +8,7 @@ import { useTheme } from '@/lib/theme-context';
 import {
   LayoutDashboard, Package, PlusCircle, ArrowUpCircle, ArrowDownCircle,
   FileText, RotateCcw, Users, Settings, LogOut, ChevronLeft, ChevronRight,
-  ChevronDown, History, Sun, Moon, Ship, ClipboardList,
+  ChevronDown, History, Sun, Moon, Ship, ClipboardList, ScrollText,
 } from 'lucide-react';
 import { useState, useRef, useCallback } from 'react';
 
@@ -37,6 +37,7 @@ const nav: NavItem[] = [
       { label: 'Sorties', href: '/documents-sorties', icon: ArrowDownCircle },
     ],
   },
+  { type: 'link', label: 'Devis', href: '/devis', icon: ScrollText },
   { type: 'link', label: 'Contrôle Facturier', href: '/facturier-controle', icon: ClipboardList },
   { type: 'link', label: 'Partenaire', href: '/partenaire', icon: Users },
   { type: 'link', label: 'Paramètre', href: '/parametre', icon: Settings },

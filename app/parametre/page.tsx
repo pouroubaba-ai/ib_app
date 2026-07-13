@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import {
-  collection, query, where, getDocs, doc, setDoc, deleteDoc, serverTimestamp,
+  collection, query, where, getDocs, doc, setDoc, deleteDoc, serverTimestamp, getDoc,
 } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, deleteUser as fbDeleteUser } from 'firebase/auth';
 import { db, authSecondary } from '@/lib/firebase';
@@ -9,7 +9,7 @@ import { useAuth, UserRole } from '@/lib/auth-context';
 import AppLayout from '@/components/AppLayout';
 import {
   User, Mail, Plus, Trash2, X, Eye, EyeOff,
-  Warehouse, Receipt, ShieldCheck,
+  Warehouse, Receipt, ShieldCheck, Store, Save,
 } from 'lucide-react';
 
 interface SousCompte {
@@ -26,6 +26,11 @@ const ROLE_LABELS: Record<string, { label: string; color: string; icon: React.El
 
 export default function ParametrePage() {
   const { user, profile } = useAuth();
+
+  // Infos boutique
+  const [boutique, setBoutique] = useState({ nom: '', telephone: '', adresse: '' });
+  const [savingBoutique, setSavingBoutique] = useState(false);
+  const [boutiqueOk, setBoutiqueOk] = useState(false);
 
   const [sousComptes, setSousComptes] = useState<SousCompte[]>([]);
   const [loadingComptes, setLoadingComptes] = useState(true);
@@ -53,7 +58,23 @@ export default function ParametrePage() {
     setLoadingComptes(false);
   }
 
-  useEffect(() => { chargerSousComptes(); }, [profile]);
+  useEffect(() => {
+    chargerSousComptes();
+    if (user?.uid) {
+      getDoc(doc(db, 'boutiques', user.uid)).then(snap => {
+        if (snap.exists()) setBoutique(snap.data() as any);
+      });
+    }
+  }, [profile, user]);
+
+  async function sauvegarderBoutique() {
+    if (!user?.uid) return;
+    setSavingBoutique(true);
+    await setDoc(doc(db, 'boutiques', user.uid), boutique);
+    setSavingBoutique(false);
+    setBoutiqueOk(true);
+    setTimeout(() => setBoutiqueOk(false), 2000);
+  }
 
   async function creerCompte() {
     if (!nom.trim() || !email.trim() || password.length < 6 || !profile) return;
@@ -111,6 +132,41 @@ export default function ParametrePage() {
             <p className="text-xs text-gray-400">ID utilisateur</p>
             <p className="text-xs font-mono text-gray-600 dark:text-gray-400 mt-1 break-all">{user?.uid}</p>
           </div>
+        </div>
+
+        {/* Infos boutique */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 space-y-4">
+          <div className="flex items-center gap-3 mb-1">
+            <Store size={18} className="text-indigo-600" />
+            <p className="font-semibold text-gray-900 dark:text-gray-100">Informations boutique</p>
+          </div>
+          <p className="text-xs text-gray-400">Ces informations apparaissent sur les devis PDF et WhatsApp.</p>
+          <div className="space-y-3">
+            {[
+              { key: 'nom', label: 'Nom de la boutique', placeholder: 'IBD Kunda' },
+              { key: 'telephone', label: 'Téléphone', placeholder: '+223 00 00 00 00' },
+              { key: 'adresse', label: 'Adresse', placeholder: 'Quartier, Ville' },
+            ].map(f => (
+              <div key={f.key}>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">{f.label}</label>
+                <input
+                  value={(boutique as any)[f.key]}
+                  onChange={e => setBoutique(prev => ({ ...prev, [f.key]: e.target.value }))}
+                  placeholder={f.placeholder}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-800 dark:text-gray-100"
+                />
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={sauvegarderBoutique}
+            disabled={savingBoutique}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors
+              ${boutiqueOk ? 'bg-green-500 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'} disabled:opacity-50`}
+          >
+            <Save size={15} />
+            {boutiqueOk ? 'Enregistré !' : savingBoutique ? 'Enregistrement...' : 'Enregistrer'}
+          </button>
         </div>
 
         {/* Gestion des comptes */}
