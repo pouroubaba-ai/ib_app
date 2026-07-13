@@ -7,6 +7,7 @@ import AppLayout from '@/components/AppLayout';
 import { useRouter } from 'next/navigation';
 import { formatMontant, formatDate } from '@/lib/format';
 import { FileText, Plus, Clock, CheckCircle2, XCircle, ChevronRight, Package, Search, X } from 'lucide-react';
+import FiltreDates, { PlageDates } from '@/components/FiltreDates';
 
 type StatutDevis = 'brouillon' | 'envoye' | 'confirme' | 'annule';
 
@@ -40,8 +41,7 @@ export default function DevisPage() {
   const [indexManquant, setIndexManquant] = useState(false);
   const [filtre, setFiltre] = useState<Filtre>('tous');
   const [recherche, setRecherche] = useState('');
-  const [dateDebut, setDateDebut] = useState('');
-  const [dateFin, setDateFin] = useState('');
+  const [plage, setPlage] = useState<PlageDates>({ debut: null, fin: null });
 
   const adminUid = profile?.role === 'admin' ? user?.uid : profile?.adminUid;
 
@@ -76,24 +76,20 @@ export default function DevisPage() {
         d.numeroDevis.toLowerCase().includes(q)
       );
     }
-    if (dateDebut) {
-      const debut = new Date(dateDebut);
-      debut.setHours(0, 0, 0, 0);
+    if (plage.debut) {
       r = r.filter(d => {
         const dt = d.date?.seconds ? new Date(d.date.seconds * 1000) : new Date(d.date);
-        return dt >= debut;
+        return dt >= plage.debut!;
       });
     }
-    if (dateFin) {
-      const fin = new Date(dateFin);
-      fin.setHours(23, 59, 59, 999);
+    if (plage.fin) {
       r = r.filter(d => {
         const dt = d.date?.seconds ? new Date(d.date.seconds * 1000) : new Date(d.date);
-        return dt <= fin;
+        return dt <= plage.fin!;
       });
     }
     return r;
-  }, [devis, filtre, recherche, dateDebut, dateFin]);
+  }, [devis, filtre, recherche, plage]);
 
   const stats = useMemo(() => {
     const confirmes  = devis.filter(d => d.statut === 'confirme');
@@ -174,7 +170,7 @@ export default function DevisPage() {
         </div>
 
         {/* Recherche + dates */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5">
             <Search size={15} className="text-gray-400 shrink-0" />
             <input
@@ -189,28 +185,7 @@ export default function DevisPage() {
               </button>
             )}
           </div>
-          <div className="flex gap-2">
-            <div className="flex-1 flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2">
-              <span className="text-xs text-gray-400 shrink-0">Du</span>
-              <input
-                type="date"
-                value={dateDebut}
-                onChange={e => setDateDebut(e.target.value)}
-                className="flex-1 bg-transparent text-xs outline-none text-gray-700 dark:text-gray-300"
-              />
-              {dateDebut && <button onClick={() => setDateDebut('')}><X size={12} className="text-gray-400" /></button>}
-            </div>
-            <div className="flex-1 flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2">
-              <span className="text-xs text-gray-400 shrink-0">Au</span>
-              <input
-                type="date"
-                value={dateFin}
-                onChange={e => setDateFin(e.target.value)}
-                className="flex-1 bg-transparent text-xs outline-none text-gray-700 dark:text-gray-300"
-              />
-              {dateFin && <button onClick={() => setDateFin('')}><X size={12} className="text-gray-400" /></button>}
-            </div>
-          </div>
+          <FiltreDates onChange={setPlage} defaut="tout" />
         </div>
 
         {/* Filtres */}
