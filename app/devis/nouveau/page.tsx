@@ -311,29 +311,38 @@ export default function NouveauDevisPage() {
                         <p className="text-xs text-gray-400 mt-0.5">Stock : {stock} {l.typeUnite === 'C' ? 'ctn' : 'u'}</p>
                       )}
                     </div>
-                    {/* Unité */}
+                    {/* Unité (dépôt seulement) */}
                     {!l.horsDepot && (
-                      <select
-                        value={l.typeUnite}
-                        onChange={e => mettreAJourLigne(l.key, 'typeUnite', e.target.value)}
-                        className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-1.5 py-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                      >
-                        <option value="U">U</option>
-                        <option value="C">Ctn</option>
-                      </select>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <p className="text-[10px] text-gray-400">Unité</p>
+                        <select
+                          value={l.typeUnite}
+                          onChange={e => mettreAJourLigne(l.key, 'typeUnite', e.target.value)}
+                          className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-1.5 py-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                        >
+                          <option value="U">U</option>
+                          <option value="C">Ctn</option>
+                        </select>
+                      </div>
                     )}
                     {/* Quantité */}
-                    <input
-                      type="number" min={1} value={l.quantite}
-                      onChange={e => mettreAJourLigne(l.key, 'quantite', Number(e.target.value))}
-                      className="w-14 text-xs text-center border border-gray-200 dark:border-gray-700 rounded-lg px-1 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                    />
+                    <div className="flex flex-col items-center gap-0.5">
+                      <p className="text-[10px] text-gray-400">Qté</p>
+                      <input
+                        type="number" min={1} value={l.quantite}
+                        onChange={e => mettreAJourLigne(l.key, 'quantite', Number(e.target.value))}
+                        className="w-14 text-xs text-center border border-gray-200 dark:border-gray-700 rounded-lg px-1 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                      />
+                    </div>
                     {/* Prix */}
-                    <input
-                      type="number" min={0} value={l.prix}
-                      onChange={e => mettreAJourLigne(l.key, 'prix', Number(e.target.value))}
-                      className="w-20 text-xs text-right border border-gray-200 dark:border-gray-700 rounded-lg px-1.5 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                    />
+                    <div className="flex flex-col items-center gap-0.5">
+                      <p className="text-[10px] text-gray-400">Prix/u</p>
+                      <input
+                        type="number" min={0} value={l.prix}
+                        onChange={e => mettreAJourLigne(l.key, 'prix', Number(e.target.value))}
+                        className="w-20 text-xs text-right border border-gray-200 dark:border-gray-700 rounded-lg px-1.5 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                      />
+                    </div>
                     {/* Total */}
                     <p className="text-xs font-bold text-indigo-600 w-20 text-right shrink-0">
                       {(l.quantite * l.prix).toLocaleString('fr-FR')}
