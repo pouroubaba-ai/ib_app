@@ -4,14 +4,18 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
-      router.push(user ? '/dashboard' : '/login');
-    }
-  }, [user, loading, router]);
+    if (loading) return;
+    if (!user) { router.push('/login'); return; }
+    // Attendre que le profil soit chargé pour rediriger vers la bonne route
+    if (!profile) return;
+    if (profile.role === 'depot') router.push('/depot');
+    else if (profile.role === 'facturier') router.push('/facturier');
+    else router.push('/dashboard');
+  }, [user, profile, loading, router]);
 
   return (
     <div className="flex h-screen items-center justify-center">
