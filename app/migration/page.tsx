@@ -172,7 +172,7 @@ export default function MigrationPage() {
               continue;
             }
 
-            const prod = prodSnap.data();
+            const prod = prodSnap.data() as any;
             const prixUnitaire: number = prod.prix_unitaire || 0;
             const qpe: number = prod.quantite_par_emballage || 1;
             const typeUnite: string = data.typeUnite || 'U';
