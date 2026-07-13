@@ -69,14 +69,23 @@ export default function DevisPage() {
     [devis, filtre]
   );
 
-  const stats = useMemo(() => ({
-    total:     devis.length,
-    confirme:  devis.filter(d => d.statut === 'confirme').length,
-    enAttente: devis.filter(d => d.statut === 'envoye' || d.statut === 'brouillon').length,
-    annule:    devis.filter(d => d.statut === 'annule').length,
-    valeurHorsDepot:        devis.filter(d => d.statut === 'confirme').reduce((s, d) => s + (d.totalHorsDepot || 0), 0),
-    valeurHorsDepotAttente: devis.filter(d => d.statut === 'envoye').reduce((s, d) => s + (d.totalHorsDepot || 0), 0),
-  }), [devis]);
+  const stats = useMemo(() => {
+    const confirmes  = devis.filter(d => d.statut === 'confirme');
+    const enAttente  = devis.filter(d => d.statut === 'envoye' || d.statut === 'brouillon');
+    const annules    = devis.filter(d => d.statut === 'annule');
+    return {
+      total:              devis.length,
+      totalMontant:       devis.reduce((s, d) => s + (d.totalGeneral || 0), 0),
+      confirme:           confirmes.length,
+      confirmeMontant:    confirmes.reduce((s, d) => s + (d.totalGeneral || 0), 0),
+      enAttente:          enAttente.length,
+      enAttenteMontant:   enAttente.reduce((s, d) => s + (d.totalGeneral || 0), 0),
+      annule:             annules.length,
+      annuleMontant:      annules.reduce((s, d) => s + (d.totalGeneral || 0), 0),
+      valeurHorsDepot:        confirmes.reduce((s, d) => s + (d.totalHorsDepot || 0), 0),
+      valeurHorsDepotAttente: enAttente.reduce((s, d) => s + (d.totalHorsDepot || 0), 0),
+    };
+  }, [devis]);
 
   const FILTRES: { key: Filtre; label: string }[] = [
     { key: 'tous',     label: 'Tous' },
@@ -107,14 +116,15 @@ export default function DevisPage() {
         {/* Indicateurs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Total',       value: stats.total,     color: 'text-gray-900 dark:text-gray-100', bg: 'bg-white dark:bg-gray-900' },
-            { label: 'Confirmés',   value: stats.confirme,  color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
-            { label: 'En attente',  value: stats.enAttente, color: 'text-blue-600',  bg: 'bg-blue-50 dark:bg-blue-900/20' },
-            { label: 'Annulés',     value: stats.annule,    color: 'text-red-500',   bg: 'bg-red-50 dark:bg-red-900/20' },
+            { label: 'Total',      nb: stats.total,     montant: stats.totalMontant,    color: 'text-gray-900 dark:text-gray-100', bg: 'bg-white dark:bg-gray-900',        border: 'border-gray-100 dark:border-gray-800' },
+            { label: 'Confirmés',  nb: stats.confirme,  montant: stats.confirmeMontant,  color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20',   border: 'border-green-100 dark:border-green-800' },
+            { label: 'En attente', nb: stats.enAttente, montant: stats.enAttenteMontant, color: 'text-blue-600',  bg: 'bg-blue-50 dark:bg-blue-900/20',     border: 'border-blue-100 dark:border-blue-800' },
+            { label: 'Annulés',    nb: stats.annule,    montant: stats.annuleMontant,    color: 'text-red-500',   bg: 'bg-red-50 dark:bg-red-900/20',       border: 'border-red-100 dark:border-red-800' },
           ].map(s => (
-            <div key={s.label} className={`${s.bg} rounded-2xl border border-gray-100 dark:border-gray-800 p-4`}>
+            <div key={s.label} className={`${s.bg} rounded-2xl border ${s.border} p-4`}>
               <p className="text-xs text-gray-400 font-medium">{s.label}</p>
-              <p className={`text-2xl font-bold mt-1 ${s.color}`}>{s.value}</p>
+              <p className={`text-2xl font-bold mt-1 ${s.color}`}>{s.nb}</p>
+              <p className={`text-xs font-semibold mt-1 ${s.color} opacity-80`}>{formatMontant(s.montant)}</p>
             </div>
           ))}
         </div>

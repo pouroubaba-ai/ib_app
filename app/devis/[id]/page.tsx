@@ -416,12 +416,18 @@ export default function FicheDevisPage() {
       </html>
     `;
 
-    const w = window.open('', '_blank');
-    if (w) {
-      w.document.write(html);
-      w.document.close();
-      w.print();
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden';
+    document.body.appendChild(iframe);
+    const iDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (iDoc) {
+      iDoc.open();
+      iDoc.write(html);
+      iDoc.close();
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
     }
+    setTimeout(() => document.body.removeChild(iframe), 2000);
   }
 
   if (loading) return (
