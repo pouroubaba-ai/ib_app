@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import AppLayout from '@/components/AppLayout';
 import { useRouter } from 'next/navigation';
 import { formatMontant, formatDate } from '@/lib/format';
-import { FileText, Plus, Clock, CheckCircle2, XCircle, ChevronRight, Package } from 'lucide-react';
+import { FileText, Plus, Clock, CheckCircle2, XCircle, ChevronRight, Package, Search, X } from 'lucide-react';
 
 type StatutDevis = 'brouillon' | 'envoye' | 'confirme' | 'annule';
 
@@ -39,6 +39,9 @@ export default function DevisPage() {
   const [loading, setLoading] = useState(true);
   const [indexManquant, setIndexManquant] = useState(false);
   const [filtre, setFiltre] = useState<Filtre>('tous');
+  const [recherche, setRecherche] = useState('');
+  const [dateDebut, setDateDebut] = useState('');
+  const [dateFin, setDateFin] = useState('');
 
   const adminUid = profile?.role === 'admin' ? user?.uid : profile?.adminUid;
 
@@ -64,10 +67,33 @@ export default function DevisPage() {
     load();
   }, [adminUid]);
 
-  const liste = useMemo(() =>
-    filtre === 'tous' ? devis : devis.filter(d => d.statut === filtre),
-    [devis, filtre]
-  );
+  const liste = useMemo(() => {
+    let r = filtre === 'tous' ? devis : devis.filter(d => d.statut === filtre);
+    if (recherche.trim()) {
+      const q = recherche.toLowerCase();
+      r = r.filter(d =>
+        d.clientNom.toLowerCase().includes(q) ||
+        d.numeroDevis.toLowerCase().includes(q)
+      );
+    }
+    if (dateDebut) {
+      const debut = new Date(dateDebut);
+      debut.setHours(0, 0, 0, 0);
+      r = r.filter(d => {
+        const dt = d.date?.seconds ? new Date(d.date.seconds * 1000) : new Date(d.date);
+        return dt >= debut;
+      });
+    }
+    if (dateFin) {
+      const fin = new Date(dateFin);
+      fin.setHours(23, 59, 59, 999);
+      r = r.filter(d => {
+        const dt = d.date?.seconds ? new Date(d.date.seconds * 1000) : new Date(d.date);
+        return dt <= fin;
+      });
+    }
+    return r;
+  }, [devis, filtre, recherche, dateDebut, dateFin]);
 
   const stats = useMemo(() => {
     const confirmes  = devis.filter(d => d.statut === 'confirme');
@@ -143,6 +169,46 @@ export default function DevisPage() {
             <div>
               <p className="text-xs text-amber-600/70 dark:text-amber-400/70">En attente</p>
               <p className="text-lg font-bold text-amber-700 dark:text-amber-400 mt-0.5">{formatMontant(stats.valeurHorsDepotAttente)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Recherche + dates */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5">
+            <Search size={15} className="text-gray-400 shrink-0" />
+            <input
+              value={recherche}
+              onChange={e => setRecherche(e.target.value)}
+              placeholder="Rechercher un client ou un numéro..."
+              className="flex-1 bg-transparent text-sm outline-none text-gray-700 dark:text-gray-300 placeholder-gray-400"
+            />
+            {recherche && (
+              <button onClick={() => setRecherche('')}>
+                <X size={14} className="text-gray-400 hover:text-gray-600" />
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1 flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2">
+              <span className="text-xs text-gray-400 shrink-0">Du</span>
+              <input
+                type="date"
+                value={dateDebut}
+                onChange={e => setDateDebut(e.target.value)}
+                className="flex-1 bg-transparent text-xs outline-none text-gray-700 dark:text-gray-300"
+              />
+              {dateDebut && <button onClick={() => setDateDebut('')}><X size={12} className="text-gray-400" /></button>}
+            </div>
+            <div className="flex-1 flex items-center gap-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2">
+              <span className="text-xs text-gray-400 shrink-0">Au</span>
+              <input
+                type="date"
+                value={dateFin}
+                onChange={e => setDateFin(e.target.value)}
+                className="flex-1 bg-transparent text-xs outline-none text-gray-700 dark:text-gray-300"
+              />
+              {dateFin && <button onClick={() => setDateFin('')}><X size={12} className="text-gray-400" /></button>}
             </div>
           </div>
         </div>
