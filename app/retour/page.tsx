@@ -285,6 +285,13 @@ export default function RetourPage() {
       }
     }
 
+    // Pour un retour client (Sortie), signaler au facturier qu'il y a un retour à confirmer
+    if (sens === 'Sortie') {
+      batch.update(docRef, {
+        facturierPendingRetour: true,
+      });
+    }
+
     await batch.commit();
     setSucces(true);
     setEnCours(false);
