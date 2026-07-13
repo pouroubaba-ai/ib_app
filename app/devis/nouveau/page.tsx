@@ -161,6 +161,8 @@ export default function NouveauDevisPage() {
   async function sauvegarder() {
     if (!client) { setErreur('Sélectionner un client'); return; }
     if (lignes.length === 0) { setErreur('Ajouter au moins un produit'); return; }
+    const sanNom = lignes.find(l => l.horsDepot && !l.produitNom.trim());
+    if (sanNom) { setErreur('Un produit hors dépôt n\'a pas de nom'); return; }
     if (!adminUid) return;
     setErreur('');
     setSaving(true);
