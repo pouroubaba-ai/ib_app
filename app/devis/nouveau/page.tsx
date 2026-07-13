@@ -267,21 +267,27 @@ export default function NouveauDevisPage() {
                 placeholder="Nom du produit hors dépôt"
                 className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
               />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Quantité</p>
+                  <input
+                    type="number" min={1} value={horsDepotQte}
+                    onChange={e => setHorsDepotQte(Number(e.target.value))}
+                    className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Prix unitaire (FCFA)</p>
+                  <input
+                    type="number" min={0} value={horsDepotPrix}
+                    onChange={e => setHorsDepotPrix(Number(e.target.value))}
+                    className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                  />
+                </div>
+              </div>
               <div className="flex gap-2">
-                <input
-                  type="number" min={1} value={horsDepotQte}
-                  onChange={e => setHorsDepotQte(Number(e.target.value))}
-                  placeholder="Qté"
-                  className="w-20 text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                />
-                <input
-                  type="number" min={0} value={horsDepotPrix}
-                  onChange={e => setHorsDepotPrix(Number(e.target.value))}
-                  placeholder="Prix unitaire"
-                  className="flex-1 text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                />
-                <button onClick={ajouterHorsDepot} className="px-3 py-2 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white">OK</button>
-                <button onClick={() => setShowHorsDepotForm(false)} className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-500">✕</button>
+                <button onClick={() => setShowHorsDepotForm(false)} className="flex-1 py-2 rounded-lg text-xs font-semibold border border-gray-200 dark:border-gray-700 text-gray-500">Annuler</button>
+                <button onClick={ajouterHorsDepot} className="flex-1 py-2 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white">Ajouter</button>
               </div>
             </div>
           )}
