@@ -143,7 +143,7 @@ export default function CartePertesHorizontale({ totalPertes, topProduits, parCa
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(value: number) => formatMontant(value)}
+                        formatter={(value: any) => formatMontant(value)}
                         labelStyle={{ fontWeight: 600 }}
                       />
                       <Legend

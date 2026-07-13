@@ -120,7 +120,7 @@ export default function CarteRepartitionHorizontale({
                         <Cell key={index} fill={couleursActives[index % couleursActives.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => formatMontant(value)} />
+                    <Tooltip formatter={(value: any) => formatMontant(value)} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
