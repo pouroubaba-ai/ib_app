@@ -23,6 +23,7 @@ const nav: NavItem[] = [
   { type: 'link', label: 'Nouvelle opération', href: '/nouvelle-operation', icon: PlusCircle },
   { type: 'link', label: 'Retour', href: '/retour', icon: RotateCcw },
   { type: 'link', label: 'Importation', href: '/importation', icon: Ship },
+  { type: 'link', label: 'Devis', href: '/devis', icon: ScrollText },
   {
     type: 'accordion', label: 'Historique', icon: History,
     children: [
@@ -37,7 +38,6 @@ const nav: NavItem[] = [
       { label: 'Sorties', href: '/documents-sorties', icon: ArrowDownCircle },
     ],
   },
-  { type: 'link', label: 'Devis', href: '/devis', icon: ScrollText },
   { type: 'link', label: 'Contrôle Facturier', href: '/facturier-controle', icon: ClipboardList },
   { type: 'link', label: 'Partenaire', href: '/partenaire', icon: Users },
   { type: 'link', label: 'Paramètre', href: '/parametre', icon: Settings },
