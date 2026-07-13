@@ -54,6 +54,13 @@ const STATUT_CONFIG: Record<StatutDevis, { label: string; color: string; bg: str
 
 type ModalType = 'confirmer' | 'annuler' | null;
 
+interface AlerteStock {
+  produitNom: string;
+  demande: number;
+  disponible: number;
+  typeUnite: 'U' | 'C';
+}
+
 export default function FicheDevisPage() {
   const { user, profile } = useAuth();
   const router = useRouter();
@@ -68,6 +75,7 @@ export default function FicheDevisPage() {
   const [modal, setModal] = useState<ModalType>(null);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState('');
+  const [alertesStock, setAlertesStock] = useState<AlerteStock[]>([]);
 
   // Edition des lignes
   const [editMode, setEditMode] = useState(false);
@@ -122,6 +130,32 @@ export default function FicheDevisPage() {
     }
   }
 
+  // Vérifier le stock avant d'ouvrir la modale de confirmation
+  async function ouvrirModalConfirmation() {
+    if (!devis) return;
+    setEnCours(true);
+    const alertes: AlerteStock[] = [];
+    const lignesDepot = devis.lignes.filter(l => !l.horsDepot && l.produitId);
+    for (const l of lignesDepot) {
+      const snap = await getDoc(doc(db, 'Produits', l.produitId!));
+      const stockUnits = (snap.data()?.quantite_unitaire_total ?? 0) as number;
+      const stockDispo = l.typeUnite === 'C' && l.qpe > 0
+        ? Math.floor(stockUnits / l.qpe)
+        : stockUnits;
+      if (l.quantite > stockDispo) {
+        alertes.push({
+          produitNom: l.produitNom,
+          demande: l.quantite,
+          disponible: stockDispo,
+          typeUnite: l.typeUnite,
+        });
+      }
+    }
+    setAlertesStock(alertes);
+    setEnCours(false);
+    setModal('confirmer');
+  }
+
   async function confirmerDevis() {
     if (!devis || !adminUid) return;
     setEnCours(true);
@@ -130,11 +164,25 @@ export default function FicheDevisPage() {
       const lignesDepot = devis.lignes.filter(l => !l.horsDepot && l.produitId);
       const batch = writeBatch(db);
 
-      // Générer un document sortie
       const now = new Date();
       const pad = (n: number) => String(n).padStart(2, '0');
       const numeroDoc = `SOR-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${Date.now().toString().slice(-4)}`;
       const docId = doc(collection(db, 'documents_stock')).id;
+
+      // Calculer les quantités réelles (limitées au stock)
+      const lignesEffectives: (LigneDevis & { qteReelle: number; qteUnitsReelle: number })[] = [];
+      for (const l of lignesDepot) {
+        const snap = await getDoc(doc(db, 'Produits', l.produitId!));
+        const stockUnits = (snap.data()?.quantite_unitaire_total ?? 0) as number;
+        const stockDispo = l.typeUnite === 'C' && l.qpe > 0
+          ? Math.floor(stockUnits / l.qpe)
+          : stockUnits;
+        const qteReelle = Math.min(l.quantite, stockDispo);
+        const qteUnitsReelle = l.typeUnite === 'C' ? qteReelle * l.qpe : qteReelle;
+        if (qteReelle > 0) lignesEffectives.push({ ...l, qteReelle, qteUnitsReelle });
+      }
+
+      const totalDepotReel = lignesEffectives.reduce((s, l) => s + l.qteReelle * l.prix, 0);
 
       batch.set(doc(db, 'documents_stock', docId), {
         userId: adminUid,
@@ -143,8 +191,8 @@ export default function FicheDevisPage() {
         clientNom: devis.clientNom,
         clientId: devis.clientId,
         date: serverTimestamp(),
-        nombreDeProduit: lignesDepot.length,
-        totalGeneral: devis.totalDepot,
+        nombreDeProduit: lignesEffectives.length,
+        totalGeneral: totalDepotReel,
         facturierTraites: [],
         facturierNbTraite: 0,
         facturierStatut: 'en_cours',
@@ -152,30 +200,26 @@ export default function FicheDevisPage() {
         devisNumero: devis.numeroDevis,
       });
 
-      // Créer les mouvements pour les produits du dépôt
-      for (const l of lignesDepot) {
+      for (const l of lignesEffectives) {
         const mouvId = doc(collection(db, 'mouvements')).id;
-        const qteUnits = l.typeUnite === 'C' ? l.quantite * l.qpe : l.quantite;
         batch.set(doc(db, 'mouvements', mouvId), {
           userId: adminUid,
           documentId: doc(db, 'documents_stock', docId),
           typeTransaction: 'Sortie',
           produitId: l.produitId,
           produitNom: l.produitNom,
-          quantite: l.quantite,
+          quantite: l.qteReelle,
           typeUnite: l.typeUnite,
-          quantiteUnites: qteUnits,
+          quantiteUnites: l.qteUnitsReelle,
           prixUnitaire: l.prix,
-          totalLigne: l.quantite * l.prix,
+          totalLigne: l.qteReelle * l.prix,
           date: serverTimestamp(),
         });
-        // Décrémenter le stock
         batch.update(doc(db, 'Produits', l.produitId!), {
-          quantite_unitaire_total: increment(-qteUnits),
+          quantite_unitaire_total: increment(-l.qteUnitsReelle),
         });
       }
 
-      // Mettre à jour le statut du devis
       batch.update(doc(db, 'devis', devisId), {
         statut: 'confirme',
         confirmedAt: serverTimestamp(),
@@ -573,8 +617,9 @@ export default function FicheDevisPage() {
               )}
               {peutConfirmer && (
                 <button
-                  onClick={() => setModal('confirmer')}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-green-600 hover:bg-green-700 text-white transition-colors"
+                  onClick={ouvrirModalConfirmation}
+                  disabled={enCours}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transition-colors"
                 >
                   <CheckCircle2 size={15} />
                   Confirmer
@@ -602,10 +647,30 @@ export default function FicheDevisPage() {
               </p>
               <p className="text-sm text-gray-400 text-center">
                 {modal === 'confirmer'
-                  ? `Cette action va créer une sortie de stock pour les ${lignesDepot.length} produit(s) du dépôt. Elle est irréversible.`
+                  ? `Cette action va créer une sortie de stock pour les produits du dépôt. Elle est irréversible.`
                   : 'Le devis sera définitivement annulé. Aucun mouvement ne sera créé.'
                 }
               </p>
+              {modal === 'confirmer' && alertesStock.length > 0 && (
+                <div className="w-full mt-1 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-1.5 text-amber-600 text-xs font-semibold">
+                    <AlertTriangle size={13} />
+                    Stock insuffisant — quantité ajustée
+                  </div>
+                  {alertesStock.map((a, i) => (
+                    <div key={i} className="text-xs text-amber-700 dark:text-amber-400">
+                      <span className="font-medium">{a.produitNom}</span>
+                      {' '}— demandé : <span className="font-bold">{a.demande}</span>,
+                      disponible : <span className="font-bold text-green-600">{a.disponible}</span>
+                      {' '}{a.typeUnite === 'C' ? 'ctn' : 'u'}
+                      {a.disponible === 0 && (
+                        <span className="ml-1 text-red-500 font-semibold">(hors stock — ignoré)</span>
+                      )}
+                    </div>
+                  ))}
+                  <p className="text-xs text-amber-600/80 mt-1">Seule la quantité disponible sera sortie du stock.</p>
+                </div>
+              )}
             </div>
             {erreur && <p className="text-xs text-red-500 text-center mb-3">{erreur}</p>}
             <div className="flex gap-3">
