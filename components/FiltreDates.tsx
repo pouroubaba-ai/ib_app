@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar } from 'lucide-react';
 
 export interface PlageDates {
@@ -26,6 +26,9 @@ export default function FiltreDates({ onChange, defaut = 'annee' }: Props) {
   const [showCustom, setShowCustom] = useState(false);
   const [debutStr, setDebutStr] = useState('');
   const [finStr, setFinStr] = useState('');
+
+  // Appliquer le filtre par défaut au montage
+  useEffect(() => { select(defaut); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function select(r: Raccourci) {
     setActif(r);
