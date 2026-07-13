@@ -126,8 +126,8 @@ export default function CarteReajustementHorizontale({ reajHausse, reajBaisse, h
                           label={({ cx, cy, midAngle, innerRadius, outerRadius, index }) => {
                             const RADIAN = Math.PI / 180;
                             const r = innerRadius + (outerRadius - innerRadius) * 1.35;
-                            const x = cx + r * Math.cos(-midAngle * RADIAN);
-                            const y = cy + r * Math.sin(-midAngle * RADIAN);
+                            const x = cx + r * Math.cos(-(midAngle ?? 0) * RADIAN);
+                            const y = cy + r * Math.sin(-(midAngle ?? 0) * RADIAN);
                             const m = data.parMotif[index];
                             const c = Math.round(m.cartons);
                             return c > 0 ? (

@@ -113,7 +113,7 @@ export default function CarteRepartitionHorizontale({
                       cy="50%"
                       outerRadius={90}
                       innerRadius={50}
-                      label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
                       labelLine={false}
                     >
                       {dataActif.map((_, index) => (
@@ -130,7 +130,7 @@ export default function CarteRepartitionHorizontale({
                 {dataActif.map((item, index) => {
                   const pct = totalActif > 0 ? (item.valeur / totalActif) * 100 : 0;
                   const couleur = couleursActives[index % couleursActives.length];
-                  const hasSous = (item.sousItems?.length ?? 0) > 0;
+                  const hasSous = ((item as any).sousItems?.length ?? 0) > 0;
                   const isExpanded = expandedItems.has(item.nom);
                   return (
                     <div key={item.nom}>
@@ -156,7 +156,7 @@ export default function CarteRepartitionHorizontale({
                       {/* Sous-items (conteneurs) */}
                       {hasSous && isExpanded && (
                         <div className="mt-2 ml-4 space-y-1.5 border-l-2 pl-3" style={{ borderColor: couleur + '40' }}>
-                          {item.sousItems!.map(sous => {
+                          {((item as any).sousItems as any[]).map((sous: any) => {
                             const sousPct = item.valeur > 0 ? (sous.valeur / item.valeur) * 100 : 0;
                             return (
                               <div key={sous.nom}>
