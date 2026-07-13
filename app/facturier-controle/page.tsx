@@ -143,8 +143,8 @@ export default function FacturierControlePage() {
   }, [docs, recherche, filtreStatut, plage]);
 
   const nbTermine = useMemo(() =>
-    docs.filter(d => d.facturierTraites.length >= d.nombreDeProduit && d.nombreDeProduit > 0 && !d.hasPendingRetour).length, [docs]);
-  const nbEnCours = docs.length - nbTermine;
+    filtered.filter(d => d.facturierTraites.length >= d.nombreDeProduit && d.nombreDeProduit > 0 && !d.hasPendingRetour).length, [filtered]);
+  const nbEnCours = filtered.length - nbTermine;
 
   const toggleExpand = async (d: DocSortie) => {
     setExpanded(prev => {
@@ -215,7 +215,7 @@ export default function FacturierControlePage() {
         {/* Résumé */}
         <div className="grid grid-cols-3 gap-3 mb-5">
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-3.5 text-center">
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{docs.length}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{filtered.length}</p>
             <p className="text-xs text-gray-400 mt-0.5">Total</p>
           </div>
           <div className="bg-orange-50 dark:bg-orange-950/30 rounded-2xl border border-orange-100 dark:border-orange-900/30 p-3.5 text-center">
