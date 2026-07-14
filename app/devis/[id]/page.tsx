@@ -417,12 +417,13 @@ export default function FicheDevisPage() {
       pdf.setFontSize(7.5); pdf.setFont('helvetica', 'italic'); pdf.setTextColor(140);
       pdf.text('Ces produits doivent etre recuperes separement par le personnel.', M, y); y += 5;
       drawTable(
-        ['[ ]', 'Designation', 'Qte', 'Prix unitaire', 'Total'],
-        [10, 86, 14, 38, 32],
-        ['L', 'L', 'R', 'R', 'R'],
+        ['', 'Designation', 'Unite', 'Qte', 'Prix unitaire', 'Total'],
+        [10, 70, 20, 14, 38, 28],
+        ['L', 'L', 'L', 'R', 'R', 'R'],
         lignesHors.map(l => [
           '[ ]',
-          trunc(l.produitNom, 44),
+          trunc(l.produitNom, 36),
+          l.typeUnite === 'C' ? 'Carton' : 'Unite',
           String(l.quantite),
           fmtF(l.prix),
           fmtF(l.quantite * l.prix),
