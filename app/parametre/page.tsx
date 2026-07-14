@@ -7,9 +7,10 @@ import { createUserWithEmailAndPassword, deleteUser as fbDeleteUser } from 'fire
 import { db, authSecondary } from '@/lib/firebase';
 import { useAuth, UserRole } from '@/lib/auth-context';
 import AppLayout from '@/components/AppLayout';
+import { useRef } from 'react';
 import {
   User, Mail, Plus, Trash2, X, Eye, EyeOff,
-  Warehouse, Receipt, ShieldCheck, Store, Save,
+  Warehouse, Receipt, ShieldCheck, Store, Save, ImagePlus, Trash,
 } from 'lucide-react';
 
 interface SousCompte {
@@ -27,8 +28,10 @@ const ROLE_LABELS: Record<string, { label: string; color: string; icon: React.El
 export default function ParametrePage() {
   const { user, profile } = useAuth();
 
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
   // Infos boutique
-  const [boutique, setBoutique] = useState({ nom: '', telephone: '', adresse: '' });
+  const [boutique, setBoutique] = useState({ nom: '', telephone: '', adresse: '', logo: '' });
   const [savingBoutique, setSavingBoutique] = useState(false);
   const [boutiqueOk, setBoutiqueOk] = useState(false);
 
@@ -66,6 +69,14 @@ export default function ParametrePage() {
       });
     }
   }, [profile, user]);
+
+  function chargerLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setBoutique(prev => ({ ...prev, logo: reader.result as string }));
+    reader.readAsDataURL(file);
+  }
 
   async function sauvegarderBoutique() {
     if (!user?.uid) return;
@@ -141,6 +152,43 @@ export default function ParametrePage() {
             <p className="font-semibold text-gray-900 dark:text-gray-100">Informations boutique</p>
           </div>
           <p className="text-xs text-gray-400">Ces informations apparaissent sur les devis PDF et WhatsApp.</p>
+
+          {/* Logo */}
+          <div>
+            <p className="text-xs font-medium text-gray-500 mb-2">Logo de la boutique</p>
+            <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={chargerLogo} />
+            {boutique.logo ? (
+              <div className="flex items-center gap-3">
+                <img src={boutique.logo} alt="Logo" className="h-16 w-auto max-w-[120px] object-contain rounded-lg border border-gray-200 dark:border-gray-700 bg-white p-1" />
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    className="text-xs text-indigo-600 hover:underline"
+                  >
+                    Changer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBoutique(prev => ({ ...prev, logo: '' }))}
+                    className="flex items-center gap-1 text-xs text-red-400 hover:text-red-500"
+                  >
+                    <Trash size={11} /> Supprimer
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-400 hover:border-indigo-300 hover:text-indigo-500 transition-colors w-full"
+              >
+                <ImagePlus size={16} />
+                Ajouter un logo (PNG, JPG…)
+              </button>
+            )}
+          </div>
+
           <div className="space-y-3">
             {[
               { key: 'nom', label: 'Nom de la boutique', placeholder: 'IBD Kunda' },

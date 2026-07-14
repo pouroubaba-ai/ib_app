@@ -43,6 +43,7 @@ interface BoutiqueInfo {
   nom: string;
   telephone: string;
   adresse: string;
+  logo?: string;
 }
 
 const STATUT_CONFIG: Record<StatutDevis, { label: string; color: string; bg: string }> = {
@@ -326,10 +327,13 @@ export default function FicheDevisPage() {
       </head>
       <body>
         <div class="header">
-          <div>
-            <div class="boutique-nom">${boutiqueInfo?.nom || 'IBD Kunda'}</div>
-            <div class="boutique-info">${boutiqueInfo?.telephone ? '📞 ' + boutiqueInfo.telephone : ''}</div>
-            <div class="boutique-info">${boutiqueInfo?.adresse ? '📍 ' + boutiqueInfo.adresse : ''}</div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            ${boutiqueInfo?.logo ? `<img src="${boutiqueInfo.logo}" alt="Logo" style="height:56px;width:auto;max-width:100px;object-fit:contain;" />` : ''}
+            <div>
+              <div class="boutique-nom">${boutiqueInfo?.nom || 'IBD Kunda'}</div>
+              <div class="boutique-info">${boutiqueInfo?.telephone ? '📞 ' + boutiqueInfo.telephone : ''}</div>
+              <div class="boutique-info">${boutiqueInfo?.adresse ? '📍 ' + boutiqueInfo.adresse : ''}</div>
+            </div>
           </div>
           <div class="devis-meta">
             <div class="devis-numero">DEVIS</div>

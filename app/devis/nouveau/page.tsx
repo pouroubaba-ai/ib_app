@@ -70,6 +70,7 @@ export default function NouveauDevisPage() {
   const [horsDepotNom, setHorsDepotNom] = useState('');
   const [horsDepotQte, setHorsDepotQte] = useState(1);
   const [horsDepotPrix, setHorsDepotPrix] = useState(0);
+  const [horsDepotTypeUnite, setHorsDepotTypeUnite] = useState<'U' | 'C'>('U');
 
   const [saving, setSaving] = useState(false);
   const [erreur, setErreur] = useState('');
@@ -126,7 +127,7 @@ export default function NouveauDevisPage() {
       key: Date.now().toString(),
       produitId: null,
       produitNom: horsDepotNom.trim(),
-      typeUnite: 'U',
+      typeUnite: horsDepotTypeUnite,
       quantite: horsDepotQte,
       prix: horsDepotPrix,
       qpe: 1,
@@ -135,6 +136,7 @@ export default function NouveauDevisPage() {
     setHorsDepotNom('');
     setHorsDepotQte(1);
     setHorsDepotPrix(0);
+    setHorsDepotTypeUnite('U');
     setShowHorsDepotForm(false);
   }
 
@@ -267,6 +269,24 @@ export default function NouveauDevisPage() {
                 placeholder="Nom du produit hors dépôt"
                 className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
               />
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Unité de vente</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['U', 'C'] as const).map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setHorsDepotTypeUnite(v)}
+                      className={`py-2 rounded-lg text-xs font-semibold border-2 transition-colors
+                        ${horsDepotTypeUnite === v
+                          ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+                          : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300'}`}
+                    >
+                      {v === 'U' ? 'Unité' : 'Carton'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <p className="text-xs text-gray-400 mb-1">Quantité</p>
