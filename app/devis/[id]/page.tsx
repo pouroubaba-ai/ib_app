@@ -10,7 +10,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { formatMontant, formatDate } from '@/lib/format';
 import {
   ArrowLeft, Package, CheckCircle2, XCircle, Share2, Download,
-  Edit2, Check, X, AlertTriangle,
+  Edit2, Check, X, AlertTriangle, FileText, ClipboardList,
 } from 'lucide-react';
 
 type StatutDevis = 'brouillon' | 'envoye' | 'confirme' | 'annule';
@@ -254,76 +254,72 @@ export default function FicheDevisPage() {
     }
   }
 
-  function partagerWhatsApp() {
+  function partagerWhatsApp(type: 'facture' | 'bon') {
     if (!devis) return;
-    const lignesDepot = devis.lignes.filter(l => !l.horsDepot);
-    const lignesHors = devis.lignes.filter(l => l.horsDepot);
-
+    const fmt = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
     let texte = `*${boutiqueInfo?.nom || 'IBD Kunda'}*\n`;
     if (boutiqueInfo?.telephone) texte += `📞 ${boutiqueInfo.telephone}\n`;
     if (boutiqueInfo?.adresse) texte += `📍 ${boutiqueInfo.adresse}\n`;
-    texte += `\n*DEVIS ${devis.numeroDevis}*\n`;
-    texte += `Client : ${devis.clientNom}\n`;
-    texte += `Date : ${formatDate(devis.date)}\n\n`;
 
-    if (lignesDepot.length > 0) {
+    if (type === 'facture') {
+      const titre = devis.statut === 'confirme' ? 'FACTURE' : 'DEVIS';
+      texte += `\n*${titre} ${devis.numeroDevis}*\n`;
+      texte += `Client : ${devis.clientNom}\n`;
+      texte += `Date : ${formatDate(devis.date)}\n\n`;
       texte += `*Produits :*\n`;
-      lignesDepot.forEach(l => {
-        const total = l.quantite * l.prix;
-        texte += `• ${l.produitNom} — ${l.quantite} ${l.typeUnite === 'C' ? 'ctn' : 'u'} × ${l.prix.toLocaleString('fr-FR')} = ${total.toLocaleString('fr-FR')} FCFA\n`;
+      devis.lignes.forEach(l => {
+        texte += `• ${l.produitNom} — ${l.quantite} ${l.typeUnite === 'C' ? 'ctn' : 'u'} x ${fmt(l.prix)} = ${fmt(l.quantite * l.prix)} FCFA\n`;
       });
+      texte += `\n*Total : ${fmt(devis.totalGeneral)} FCFA*`;
+    } else {
+      texte += `\n*BON DE COMMANDE ${devis.numeroDevis}*\n`;
+      texte += `Client : ${devis.clientNom}\n`;
+      texte += `Date : ${formatDate(devis.date)}\n\n`;
+      const lignesDepot = devis.lignes.filter(l => !l.horsDepot);
+      const lignesHors  = devis.lignes.filter(l => l.horsDepot);
+      if (lignesDepot.length > 0) {
+        texte += `*Produits depot :*\n`;
+        lignesDepot.forEach(l => {
+          texte += `• ${l.produitNom} — ${l.quantite} ${l.typeUnite === 'C' ? 'ctn' : 'u'}\n`;
+        });
+      }
+      if (lignesHors.length > 0) {
+        texte += `\n*Hors depot (a preparer) :*\n`;
+        lignesHors.forEach(l => {
+          texte += `[ ] ${l.produitNom} — ${l.quantite} ${l.typeUnite === 'C' ? 'ctn' : 'u'}\n`;
+        });
+      }
     }
 
-    if (lignesHors.length > 0) {
-      texte += `\n*Hors dépôt :*\n`;
-      lignesHors.forEach(l => {
-        const total = l.quantite * l.prix;
-        texte += `• ${l.produitNom} — ${l.quantite} × ${l.prix.toLocaleString('fr-FR')} = ${total.toLocaleString('fr-FR')} FCFA\n`;
-      });
-    }
-
-    texte += `\n*Total : ${devis.totalGeneral.toLocaleString('fr-FR')} FCFA*`;
-
-    const url = `https://wa.me/?text=${encodeURIComponent(texte)}`;
-    window.open(url, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(texte)}`, '_blank');
   }
 
-  async function telecharger() {
-    if (!devis) return;
+  // ── Helper PDF partagé ────────────────────────────────────
+  async function creerBasePDF(titre: string, bandeauRGB: [number, number, number]) {
     const { jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
-
-    // Formatage nombre sans toLocaleString (évite les / de jsPDF)
-    const fmt = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA';
-    const fmtF = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' F';
-    const trunc = (s: string, max: number) => s.length > max ? s.slice(0, max - 1) + '.' : s;
-
-    const lignesDepot = devis.lignes.filter(l => !l.horsDepot);
-    const lignesHors  = devis.lignes.filter(l => l.horsDepot);
     const pageW = 210;
     const M = 15;
     const colW = pageW - M * 2;
-    let y = M;
 
-    const estConfirme = devis.statut === 'confirme';
-    const titrePDF = estConfirme ? 'BON DE SORTIE' : 'DEVIS';
+    const fmt  = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA';
+    const fmtF = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' F';
+    const trunc = (s: string, max: number) => s.length > max ? s.slice(0, max - 1) + '.' : s;
 
-    // ── Bandeau bleu en-tête ─────────────────────────────────
-    pdf.setFillColor(estConfirme ? 22 : 49, estConfirme ? 101 : 70, estConfirme ? 52 : 145);
+    // Bandeau
+    pdf.setFillColor(...bandeauRGB);
     pdf.rect(0, 0, pageW, 38, 'F');
 
     // Logo
-    const haLogo = !!boutiqueInfo?.logo;
     let textLeft = M;
-    if (haLogo) {
+    if (boutiqueInfo?.logo) {
       try {
-        const ext = boutiqueInfo!.logo!.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-        pdf.addImage(boutiqueInfo!.logo!, ext, M, 6, 22, 22, undefined, 'FAST');
+        const ext = boutiqueInfo.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+        pdf.addImage(boutiqueInfo.logo, ext, M, 6, 22, 22, undefined, 'FAST');
         textLeft = M + 26;
       } catch { /* ignore */ }
     }
 
-    // Nom boutique
     pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15); pdf.setTextColor(255);
     pdf.text(boutiqueInfo?.nom || 'IBD Kunda', textLeft, 16);
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(200, 210, 255);
@@ -331,16 +327,15 @@ export default function FicheDevisPage() {
     if (boutiqueInfo?.telephone) { pdf.text('Tel: ' + boutiqueInfo.telephone, textLeft, infoY); infoY += 5; }
     if (boutiqueInfo?.adresse)   { pdf.text(boutiqueInfo.adresse, textLeft, infoY); }
 
-    // Titre + numéro (droite)
     pdf.setFont('helvetica', 'bold'); pdf.setFontSize(22); pdf.setTextColor(255);
-    pdf.text(titrePDF, pageW - M, 17, { align: 'right' });
+    pdf.text(titre, pageW - M, 17, { align: 'right' });
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(200, 210, 255);
-    pdf.text(devis.numeroDevis, pageW - M, 23, { align: 'right' });
-    pdf.text(formatDate(devis.date), pageW - M, 29, { align: 'right' });
+    pdf.text(devis!.numeroDevis, pageW - M, 23, { align: 'right' });
+    pdf.text(formatDate(devis!.date), pageW - M, 29, { align: 'right' });
 
-    y = 46;
+    let y = 46;
 
-    // ── Bloc client ──────────────────────────────────────────
+    // Bloc client
     pdf.setFillColor(245, 247, 255);
     pdf.roundedRect(M, y, colW, 11, 2, 2, 'F');
     pdf.setDrawColor(210, 215, 240); pdf.setLineWidth(0.3);
@@ -348,20 +343,17 @@ export default function FicheDevisPage() {
     pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(100, 110, 160);
     pdf.text('CLIENT', M + 3, y + 4.5);
     pdf.setFontSize(10.5); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(20);
-    pdf.text(devis.clientNom, M + 3, y + 9);
+    pdf.text(devis!.clientNom, M + 3, y + 9);
     y += 17;
 
-    // ── Helper tableau ───────────────────────────────────────
-    // aligns: 'L' | 'R'
     function drawTable(
       headers: string[],
       widths: number[],
       aligns: ('L' | 'R')[],
       rows: string[][],
-      accentBg: [number, number, number] = [49, 70, 145],
+      accentBg: [number, number, number],
     ) {
       const rowH = 7.5;
-      // Header
       pdf.setFillColor(...accentBg);
       pdf.rect(M, y, colW, rowH, 'F');
       pdf.setFontSize(8.5); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(255);
@@ -372,8 +364,6 @@ export default function FicheDevisPage() {
         x += widths[i];
       });
       y += rowH;
-
-      // Rows
       rows.forEach((row, ri) => {
         const bg: [number, number, number] = ri % 2 === 0 ? [255, 255, 255] : [247, 249, 255];
         pdf.setFillColor(...bg);
@@ -389,108 +379,103 @@ export default function FicheDevisPage() {
         pdf.line(M, y + rowH, M + colW, y + rowH);
         y += rowH;
       });
-      // Bordure basse
       pdf.setDrawColor(180, 185, 220); pdf.setLineWidth(0.4);
       pdf.line(M, y, M + colW, y);
       y += 6;
     }
 
-    const accentColor: [number, number, number] = estConfirme ? [22, 101, 52] : [49, 70, 145];
+    return { pdf, M, colW, pageW, y: y as number, fmt, fmtF, trunc, drawTable,
+      getY: () => y, setY: (v: number) => { y = v; } };
+  }
 
-    if (!estConfirme) {
-      // ── Tous les produits ensemble (devis non confirmé) ──────
-      const toutesLignes = devis.lignes;
-      if (toutesLignes.length > 0) {
-        pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(...accentColor);
-        pdf.text('PRODUITS', M, y); y += 4;
-        drawTable(
-          ['Designation', 'Unite', 'Qte', 'Prix unitaire', 'Total'],
-          [82, 20, 14, 38, 26],
-          ['L', 'L', 'R', 'R', 'R'],
-          toutesLignes.map(l => [
-            trunc(l.produitNom, 44),
-            l.typeUnite === 'C' ? 'Carton' : 'Unite',
-            String(l.quantite),
-            fmtF(l.prix),
-            fmtF(l.quantite * l.prix),
-          ]),
-          accentColor,
-        );
-      }
-    } else {
-      // ── Produits dépôt (confirmé) ────────────────────────────
-      if (lignesDepot.length > 0) {
-        pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(...accentColor);
-        pdf.text('PRODUITS DEPOT', M, y); y += 4;
-        drawTable(
-          ['Designation', 'Unite', 'Qte', 'Prix unitaire', 'Total'],
-          [72, 24, 14, 38, 32],
-          ['L', 'L', 'R', 'R', 'R'],
-          lignesDepot.map(l => [
-            trunc(l.produitNom, 38),
-            l.typeUnite === 'C' ? 'Carton' : 'Unite',
-            String(l.quantite),
-            fmtF(l.prix),
-            fmtF(l.quantite * l.prix),
-          ]),
-          accentColor,
-        );
-      }
+  // ── Facture / Devis (avec prix, pour le client) ───────────
+  async function telechargerFacture() {
+    if (!devis) return;
+    const estConfirme = devis.statut === 'confirme';
+    const titre = estConfirme ? 'FACTURE' : 'DEVIS';
+    const bandeau: [number, number, number] = estConfirme ? [22, 101, 52] : [49, 70, 145];
+    const accent: [number, number, number]  = estConfirme ? [22, 101, 52] : [49, 70, 145];
 
-      // ── Produits hors dépôt (confirmé) ──────────────────────
-      if (lignesHors.length > 0) {
-        pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(180, 83, 9);
-        pdf.text('PRODUITS HORS DEPOT - a preparer', M, y); y += 3;
-        pdf.setFontSize(7.5); pdf.setFont('helvetica', 'italic'); pdf.setTextColor(140);
-        pdf.text('Ces produits doivent etre recuperes separement par le personnel.', M, y); y += 5;
-        drawTable(
-          ['', 'Designation', 'Unite', 'Qte', 'Prix unitaire', 'Total'],
-          [10, 70, 20, 14, 38, 28],
-          ['L', 'L', 'L', 'R', 'R', 'R'],
-          lignesHors.map(l => [
-            '[ ]',
-            trunc(l.produitNom, 36),
-            l.typeUnite === 'C' ? 'Carton' : 'Unite',
-            String(l.quantite),
-            fmtF(l.prix),
-            fmtF(l.quantite * l.prix),
-          ]),
-          [180, 83, 9],
-        );
-      }
+    const ctx = await creerBasePDF(titre, bandeau);
+    const { pdf, M, colW, pageW, fmt, fmtF, trunc, drawTable, getY, setY } = ctx;
+
+    // Tous les produits ensemble (pas de distinction pour le client)
+    if (devis.lignes.length > 0) {
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(...accent);
+      pdf.text('PRODUITS', M, getY()); setY(getY() + 4);
+      drawTable(
+        ['Designation', 'Unite', 'Qte', 'Prix unitaire', 'Total'],
+        [82, 20, 14, 38, 26],
+        ['L', 'L', 'R', 'R', 'R'],
+        devis.lignes.map(l => [
+          trunc(l.produitNom, 44),
+          l.typeUnite === 'C' ? 'Carton' : 'Unite',
+          String(l.quantite),
+          fmtF(l.prix),
+          fmtF(l.quantite * l.prix),
+        ]),
+        accent,
+      );
     }
 
-    // ── Bloc totaux ──────────────────────────────────────────
+    // Total général uniquement
     const totW = 85;
     const totX = pageW - M - totW;
+    pdf.setFillColor(...accent);
+    pdf.roundedRect(totX, getY(), totW, 11, 2, 2, 'F');
+    pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(255);
+    pdf.text('TOTAL GENERAL', totX + 3, getY() + 7);
+    pdf.setFontSize(10);
+    pdf.text(fmt(devis.totalGeneral), totX + totW - 2, getY() + 7, { align: 'right' });
 
-    if (devis.totalHorsDepot > 0) {
-      pdf.setFillColor(250, 251, 255);
-      pdf.roundedRect(totX, y, totW, 8, 1, 1, 'F');
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(80);
-      pdf.text('Sous-total depot', totX + 3, y + 5.5);
-      pdf.setFont('helvetica', 'bold'); pdf.setTextColor(30);
-      pdf.text(fmt(devis.totalDepot), totX + totW - 2, y + 5.5, { align: 'right' });
-      y += 9;
+    pdf.save(`${devis.numeroDevis}-${titre}.pdf`);
+  }
 
-      pdf.setFillColor(255, 249, 240);
-      pdf.roundedRect(totX, y, totW, 8, 1, 1, 'F');
-      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(180, 83, 9);
-      pdf.text('Sous-total hors depot', totX + 3, y + 5.5);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(fmt(devis.totalHorsDepot), totX + totW - 2, y + 5.5, { align: 'right' });
-      y += 10;
+  // ── Bon de commande (sans prix, pour le personnel) ─────────
+  async function telechargerBonCommande() {
+    if (!devis) return;
+    const ctx = await creerBasePDF('BON DE COMMANDE', [30, 30, 30]);
+    const { pdf, M, fmtF: _, trunc, drawTable, getY, setY } = ctx;
+
+    const lignesDepot = devis.lignes.filter(l => !l.horsDepot);
+    const lignesHors  = devis.lignes.filter(l => l.horsDepot);
+
+    if (lignesDepot.length > 0) {
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(30, 30, 30);
+      pdf.text('PRODUITS DEPOT', M, getY()); setY(getY() + 4);
+      drawTable(
+        ['Designation', 'Unite', 'Quantite'],
+        [110, 30, 40],
+        ['L', 'L', 'R'],
+        lignesDepot.map(l => [
+          trunc(l.produitNom, 58),
+          l.typeUnite === 'C' ? 'Carton' : 'Unite',
+          String(l.quantite),
+        ]),
+        [30, 30, 30],
+      );
     }
 
-    // Total général
-    pdf.setFillColor(49, 70, 145);
-    pdf.roundedRect(totX, y, totW, 11, 2, 2, 'F');
-    pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(255);
-    pdf.text('TOTAL GENERAL', totX + 3, y + 7);
-    pdf.setFontSize(10);
-    pdf.text(fmt(devis.totalGeneral), totX + totW - 2, y + 7, { align: 'right' });
+    if (lignesHors.length > 0) {
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(180, 83, 9);
+      pdf.text('PRODUITS HORS DEPOT - a preparer', M, getY()); setY(getY() + 3);
+      pdf.setFontSize(7.5); pdf.setFont('helvetica', 'italic'); pdf.setTextColor(140);
+      pdf.text('Ces produits doivent etre recuperes separement par le personnel.', M, getY()); setY(getY() + 5);
+      drawTable(
+        ['', 'Designation', 'Unite', 'Quantite'],
+        [10, 100, 30, 40],
+        ['L', 'L', 'L', 'R'],
+        lignesHors.map(l => [
+          '[ ]',
+          trunc(l.produitNom, 52),
+          l.typeUnite === 'C' ? 'Carton' : 'Unite',
+          String(l.quantite),
+        ]),
+        [180, 83, 9],
+      );
+    }
 
-    pdf.save(`${devis.numeroDevis}.pdf`);
+    pdf.save(`${devis.numeroDevis}-BON-COMMANDE.pdf`);
   }
 
   if (loading) return (
@@ -630,20 +615,7 @@ export default function FicheDevisPage() {
         )}
 
         {/* Total */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 space-y-2">
-          {devis.totalHorsDepot > 0 && (
-            <>
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>Sous-total dépôt</span>
-                <span>{formatMontant(devis.totalDepot)}</span>
-              </div>
-              <div className="flex justify-between text-sm text-amber-600">
-                <span className="flex items-center gap-1"><Package size={12} />Hors dépôt</span>
-                <span>{formatMontant(devis.totalHorsDepot)}</span>
-              </div>
-              <div className="border-t border-gray-100 dark:border-gray-800 pt-2" />
-            </>
-          )}
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
           <div className="flex justify-between">
             <span className="font-bold text-gray-900 dark:text-gray-100">Total général</span>
             <span className="font-bold text-indigo-600 text-lg">{formatMontant(devis.totalGeneral)}</span>
@@ -655,46 +627,85 @@ export default function FicheDevisPage() {
         {/* Actions */}
         {!editMode && (
           <div className="space-y-3 pb-6">
-            {/* Partager / Imprimer */}
-            <div className="flex gap-3">
-              <button
-                onClick={partagerWhatsApp}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-green-500 hover:bg-green-600 text-white transition-colors"
-              >
-                <Share2 size={15} />
-                WhatsApp
-              </button>
-              <button
-                onClick={telecharger}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
-              >
-                <Download size={15} />
-                Télécharger PDF
-              </button>
-            </div>
-
-            {/* Confirmer / Annuler */}
-            <div className="flex gap-3">
-              {peutAnnuler && (
-                <button
-                  onClick={() => setModal('annuler')}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                >
-                  <XCircle size={15} />
-                  Annuler le devis
-                </button>
-              )}
-              {peutConfirmer && (
-                <button
-                  onClick={ouvrirModalConfirmation}
-                  disabled={enCours}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transition-colors"
-                >
-                  <CheckCircle2 size={15} />
-                  Confirmer
-                </button>
-              )}
-            </div>
+            {devis.statut === 'confirme' ? (
+              <>
+                {/* Confirmé : deux boutons téléchargement + WhatsApp avec choix */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={telechargerFacture}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                  >
+                    <FileText size={15} />
+                    Facture PDF
+                  </button>
+                  <button
+                    onClick={telechargerBonCommande}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-gray-700 hover:bg-gray-800 text-white transition-colors"
+                  >
+                    <ClipboardList size={15} />
+                    Bon de commande
+                  </button>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => partagerWhatsApp('facture')}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-green-500 hover:bg-green-600 text-white transition-colors"
+                  >
+                    <Share2 size={15} />
+                    WA Facture
+                  </button>
+                  <button
+                    onClick={() => partagerWhatsApp('bon')}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-green-700 hover:bg-green-800 text-white transition-colors"
+                  >
+                    <Share2 size={15} />
+                    WA Bon commande
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Non confirmé : WhatsApp + Télécharger devis */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => partagerWhatsApp('facture')}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-green-500 hover:bg-green-600 text-white transition-colors"
+                  >
+                    <Share2 size={15} />
+                    WhatsApp
+                  </button>
+                  <button
+                    onClick={telechargerFacture}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+                  >
+                    <Download size={15} />
+                    Télécharger PDF
+                  </button>
+                </div>
+                {/* Confirmer / Annuler */}
+                <div className="flex gap-3">
+                  {peutAnnuler && (
+                    <button
+                      onClick={() => setModal('annuler')}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border border-red-200 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <XCircle size={15} />
+                      Annuler le devis
+                    </button>
+                  )}
+                  {peutConfirmer && (
+                    <button
+                      onClick={ouvrirModalConfirmation}
+                      disabled={enCours}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transition-colors"
+                    >
+                      <CheckCircle2 size={15} />
+                      Confirmer
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
