@@ -305,8 +305,11 @@ export default function FicheDevisPage() {
     const colW = pageW - M * 2;
     let y = M;
 
+    const estConfirme = devis.statut === 'confirme';
+    const titrePDF = estConfirme ? 'BON DE SORTIE' : 'DEVIS';
+
     // ── Bandeau bleu en-tête ─────────────────────────────────
-    pdf.setFillColor(49, 70, 145); // bleu indigo
+    pdf.setFillColor(estConfirme ? 22 : 49, estConfirme ? 101 : 70, estConfirme ? 52 : 145);
     pdf.rect(0, 0, pageW, 38, 'F');
 
     // Logo
@@ -328,9 +331,9 @@ export default function FicheDevisPage() {
     if (boutiqueInfo?.telephone) { pdf.text('Tel: ' + boutiqueInfo.telephone, textLeft, infoY); infoY += 5; }
     if (boutiqueInfo?.adresse)   { pdf.text(boutiqueInfo.adresse, textLeft, infoY); }
 
-    // DEVIS + numéro (droite)
+    // Titre + numéro (droite)
     pdf.setFont('helvetica', 'bold'); pdf.setFontSize(22); pdf.setTextColor(255);
-    pdf.text('DEVIS', pageW - M, 17, { align: 'right' });
+    pdf.text(titrePDF, pageW - M, 17, { align: 'right' });
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(200, 210, 255);
     pdf.text(devis.numeroDevis, pageW - M, 23, { align: 'right' });
     pdf.text(formatDate(devis.date), pageW - M, 29, { align: 'right' });
@@ -392,44 +395,69 @@ export default function FicheDevisPage() {
       y += 6;
     }
 
-    // ── Produits dépôt ───────────────────────────────────────
-    if (lignesDepot.length > 0) {
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(49, 70, 145);
-      pdf.text('PRODUITS DEPOT', M, y); y += 4;
-      drawTable(
-        ['Designation', 'Unite', 'Qte', 'Prix unitaire', 'Total'],
-        [72, 24, 14, 38, 32],
-        ['L', 'L', 'R', 'R', 'R'],
-        lignesDepot.map(l => [
-          trunc(l.produitNom, 38),
-          l.typeUnite === 'C' ? 'Carton' : 'Unite',
-          String(l.quantite),
-          fmtF(l.prix),
-          fmtF(l.quantite * l.prix),
-        ]),
-      );
-    }
+    const accentColor: [number, number, number] = estConfirme ? [22, 101, 52] : [49, 70, 145];
 
-    // ── Produits hors dépôt ──────────────────────────────────
-    if (lignesHors.length > 0) {
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(180, 83, 9);
-      pdf.text('PRODUITS HORS DEPOT - a preparer', M, y); y += 3;
-      pdf.setFontSize(7.5); pdf.setFont('helvetica', 'italic'); pdf.setTextColor(140);
-      pdf.text('Ces produits doivent etre recuperes separement par le personnel.', M, y); y += 5;
-      drawTable(
-        ['', 'Designation', 'Unite', 'Qte', 'Prix unitaire', 'Total'],
-        [10, 70, 20, 14, 38, 28],
-        ['L', 'L', 'L', 'R', 'R', 'R'],
-        lignesHors.map(l => [
-          '[ ]',
-          trunc(l.produitNom, 36),
-          l.typeUnite === 'C' ? 'Carton' : 'Unite',
-          String(l.quantite),
-          fmtF(l.prix),
-          fmtF(l.quantite * l.prix),
-        ]),
-        [180, 83, 9],
-      );
+    if (!estConfirme) {
+      // ── Tous les produits ensemble (devis non confirmé) ──────
+      const toutesLignes = devis.lignes;
+      if (toutesLignes.length > 0) {
+        pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(...accentColor);
+        pdf.text('PRODUITS', M, y); y += 4;
+        drawTable(
+          ['Designation', 'Unite', 'Qte', 'Prix unitaire', 'Total'],
+          [82, 20, 14, 38, 26],
+          ['L', 'L', 'R', 'R', 'R'],
+          toutesLignes.map(l => [
+            trunc(l.produitNom, 44),
+            l.typeUnite === 'C' ? 'Carton' : 'Unite',
+            String(l.quantite),
+            fmtF(l.prix),
+            fmtF(l.quantite * l.prix),
+          ]),
+          accentColor,
+        );
+      }
+    } else {
+      // ── Produits dépôt (confirmé) ────────────────────────────
+      if (lignesDepot.length > 0) {
+        pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(...accentColor);
+        pdf.text('PRODUITS DEPOT', M, y); y += 4;
+        drawTable(
+          ['Designation', 'Unite', 'Qte', 'Prix unitaire', 'Total'],
+          [72, 24, 14, 38, 32],
+          ['L', 'L', 'R', 'R', 'R'],
+          lignesDepot.map(l => [
+            trunc(l.produitNom, 38),
+            l.typeUnite === 'C' ? 'Carton' : 'Unite',
+            String(l.quantite),
+            fmtF(l.prix),
+            fmtF(l.quantite * l.prix),
+          ]),
+          accentColor,
+        );
+      }
+
+      // ── Produits hors dépôt (confirmé) ──────────────────────
+      if (lignesHors.length > 0) {
+        pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(180, 83, 9);
+        pdf.text('PRODUITS HORS DEPOT - a preparer', M, y); y += 3;
+        pdf.setFontSize(7.5); pdf.setFont('helvetica', 'italic'); pdf.setTextColor(140);
+        pdf.text('Ces produits doivent etre recuperes separement par le personnel.', M, y); y += 5;
+        drawTable(
+          ['', 'Designation', 'Unite', 'Qte', 'Prix unitaire', 'Total'],
+          [10, 70, 20, 14, 38, 28],
+          ['L', 'L', 'L', 'R', 'R', 'R'],
+          lignesHors.map(l => [
+            '[ ]',
+            trunc(l.produitNom, 36),
+            l.typeUnite === 'C' ? 'Carton' : 'Unite',
+            String(l.quantite),
+            fmtF(l.prix),
+            fmtF(l.quantite * l.prix),
+          ]),
+          [180, 83, 9],
+        );
+      }
     }
 
     // ── Bloc totaux ──────────────────────────────────────────
