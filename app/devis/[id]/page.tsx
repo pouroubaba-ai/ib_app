@@ -293,144 +293,173 @@ export default function FicheDevisPage() {
     const { jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
 
+    // Formatage nombre sans toLocaleString (évite les / de jsPDF)
+    const fmt = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA';
+    const fmtF = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' F';
+    const trunc = (s: string, max: number) => s.length > max ? s.slice(0, max - 1) + '.' : s;
+
     const lignesDepot = devis.lignes.filter(l => !l.horsDepot);
     const lignesHors  = devis.lignes.filter(l => l.horsDepot);
     const pageW = 210;
-    const margin = 14;
-    const colW = pageW - margin * 2;
-    let y = margin;
+    const M = 15;
+    const colW = pageW - M * 2;
+    let y = M;
 
-    // ── Logo + en-tête boutique ──────────────────────────────
-    if (boutiqueInfo?.logo) {
+    // ── Bandeau bleu en-tête ─────────────────────────────────
+    pdf.setFillColor(49, 70, 145); // bleu indigo
+    pdf.rect(0, 0, pageW, 38, 'F');
+
+    // Logo
+    const haLogo = !!boutiqueInfo?.logo;
+    let textLeft = M;
+    if (haLogo) {
       try {
-        const ext = boutiqueInfo.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-        pdf.addImage(boutiqueInfo.logo, ext, margin, y, 28, 14, undefined, 'FAST');
-        pdf.setFontSize(14); pdf.setFont('helvetica', 'bold');
-        pdf.text(boutiqueInfo.nom || '', margin + 32, y + 5);
-        pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(80);
-        if (boutiqueInfo.telephone) pdf.text(boutiqueInfo.telephone, margin + 32, y + 10);
-        if (boutiqueInfo.adresse)   pdf.text(boutiqueInfo.adresse,   margin + 32, y + 14);
-      } catch {
-        pdf.setFontSize(14); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
-        pdf.text(boutiqueInfo?.nom || '', margin, y + 6);
-      }
-    } else {
-      pdf.setFontSize(14); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
-      pdf.text(boutiqueInfo?.nom || 'IBD Kunda', margin, y + 6);
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(80);
-      if (boutiqueInfo?.telephone) pdf.text(boutiqueInfo.telephone, margin, y + 11);
-      if (boutiqueInfo?.adresse)   pdf.text(boutiqueInfo.adresse,   margin, y + 15);
+        const ext = boutiqueInfo!.logo!.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+        pdf.addImage(boutiqueInfo!.logo!, ext, M, 6, 22, 22, undefined, 'FAST');
+        textLeft = M + 26;
+      } catch { /* ignore */ }
     }
 
-    // Numéro de devis (droite)
-    pdf.setFontSize(18); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
-    pdf.text('DEVIS', pageW - margin, y + 4, { align: 'right' });
-    pdf.setFontSize(10); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(80);
-    pdf.text(devis.numeroDevis, pageW - margin, y + 10, { align: 'right' });
-    pdf.text(formatDate(devis.date), pageW - margin, y + 15, { align: 'right' });
+    // Nom boutique
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15); pdf.setTextColor(255);
+    pdf.text(boutiqueInfo?.nom || 'IBD Kunda', textLeft, 16);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(200, 210, 255);
+    let infoY = 22;
+    if (boutiqueInfo?.telephone) { pdf.text('Tel: ' + boutiqueInfo.telephone, textLeft, infoY); infoY += 5; }
+    if (boutiqueInfo?.adresse)   { pdf.text(boutiqueInfo.adresse, textLeft, infoY); }
 
-    y += 22;
-    pdf.setDrawColor(0); pdf.setLineWidth(0.4);
-    pdf.line(margin, y, pageW - margin, y);
-    y += 6;
+    // DEVIS + numéro (droite)
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(22); pdf.setTextColor(255);
+    pdf.text('DEVIS', pageW - M, 17, { align: 'right' });
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(200, 210, 255);
+    pdf.text(devis.numeroDevis, pageW - M, 23, { align: 'right' });
+    pdf.text(formatDate(devis.date), pageW - M, 29, { align: 'right' });
 
-    // ── Client ───────────────────────────────────────────────
-    pdf.setFillColor(245, 245, 245);
-    pdf.roundedRect(margin, y, colW, 10, 2, 2, 'F');
-    pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
-    pdf.text('Client :', margin + 3, y + 6.5);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(devis.clientNom, margin + 20, y + 6.5);
-    y += 16;
+    y = 46;
 
-    // ── Helper tableau ────────────────────────────────────────
+    // ── Bloc client ──────────────────────────────────────────
+    pdf.setFillColor(245, 247, 255);
+    pdf.roundedRect(M, y, colW, 11, 2, 2, 'F');
+    pdf.setDrawColor(210, 215, 240); pdf.setLineWidth(0.3);
+    pdf.roundedRect(M, y, colW, 11, 2, 2, 'S');
+    pdf.setFontSize(8); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(100, 110, 160);
+    pdf.text('CLIENT', M + 3, y + 4.5);
+    pdf.setFontSize(10.5); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(20);
+    pdf.text(devis.clientNom, M + 3, y + 9);
+    y += 17;
+
+    // ── Helper tableau ───────────────────────────────────────
+    // aligns: 'L' | 'R'
     function drawTable(
       headers: string[],
       widths: number[],
+      aligns: ('L' | 'R')[],
       rows: string[][],
-      headerBg: [number, number, number] = [17, 17, 17],
+      accentBg: [number, number, number] = [49, 70, 145],
     ) {
-      const rowH = 7;
-      // header
-      pdf.setFillColor(...headerBg);
-      pdf.rect(margin, y, colW, rowH, 'F');
-      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(255);
-      let x = margin + 2;
-      headers.forEach((h, i) => { pdf.text(h, x, y + 5); x += widths[i]; });
+      const rowH = 7.5;
+      // Header
+      pdf.setFillColor(...accentBg);
+      pdf.rect(M, y, colW, rowH, 'F');
+      pdf.setFontSize(8.5); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(255);
+      let x = M;
+      headers.forEach((h, i) => {
+        const cx = aligns[i] === 'R' ? x + widths[i] - 2 : x + 3;
+        pdf.text(h, cx, y + 5.2, { align: aligns[i] === 'R' ? 'right' : 'left' });
+        x += widths[i];
+      });
       y += rowH;
 
-      // rows
-      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0);
+      // Rows
       rows.forEach((row, ri) => {
-        if (ri % 2 === 1) { pdf.setFillColor(250, 250, 250); pdf.rect(margin, y, colW, rowH, 'F'); }
-        x = margin + 2;
+        const bg: [number, number, number] = ri % 2 === 0 ? [255, 255, 255] : [247, 249, 255];
+        pdf.setFillColor(...bg);
+        pdf.rect(M, y, colW, rowH, 'F');
+        pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(30);
+        x = M;
         row.forEach((cell, ci) => {
-          pdf.setFontSize(9);
-          pdf.text(cell, x, y + 5);
+          const cx = aligns[ci] === 'R' ? x + widths[ci] - 2 : x + 3;
+          pdf.text(cell, cx, y + 5.2, { align: aligns[ci] === 'R' ? 'right' : 'left' });
           x += widths[ci];
         });
-        pdf.setDrawColor(230); pdf.line(margin, y + rowH, margin + colW, y + rowH);
+        pdf.setDrawColor(230, 233, 245); pdf.setLineWidth(0.2);
+        pdf.line(M, y + rowH, M + colW, y + rowH);
         y += rowH;
       });
-      y += 4;
+      // Bordure basse
+      pdf.setDrawColor(180, 185, 220); pdf.setLineWidth(0.4);
+      pdf.line(M, y, M + colW, y);
+      y += 6;
     }
 
-    // ── Produits dépôt ────────────────────────────────────────
+    // ── Produits dépôt ───────────────────────────────────────
     if (lignesDepot.length > 0) {
-      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
-      pdf.text('Produits dépôt', margin, y); y += 5;
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(49, 70, 145);
+      pdf.text('PRODUITS DEPOT', M, y); y += 4;
       drawTable(
-        ['Désignation', 'Unité', 'Qté', 'Prix unit.', 'Total'],
-        [70, 22, 16, 34, 40],
+        ['Designation', 'Unite', 'Qte', 'Prix unitaire', 'Total'],
+        [72, 24, 14, 38, 32],
+        ['L', 'L', 'R', 'R', 'R'],
         lignesDepot.map(l => [
-          l.produitNom.length > 32 ? l.produitNom.slice(0, 31) + '…' : l.produitNom,
-          l.typeUnite === 'C' ? 'Carton' : 'Unité',
+          trunc(l.produitNom, 38),
+          l.typeUnite === 'C' ? 'Carton' : 'Unite',
           String(l.quantite),
-          l.prix.toLocaleString('fr-FR') + ' F',
-          (l.quantite * l.prix).toLocaleString('fr-FR') + ' F',
+          fmtF(l.prix),
+          fmtF(l.quantite * l.prix),
         ]),
       );
     }
 
-    // ── Produits hors dépôt ───────────────────────────────────
+    // ── Produits hors dépôt ──────────────────────────────────
     if (lignesHors.length > 0) {
-      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(180, 83, 9);
-      pdf.text('Produits à préparer (hors dépôt)', margin, y); y += 3;
-      pdf.setFontSize(8); pdf.setFont('helvetica', 'italic'); pdf.setTextColor(120);
-      pdf.text('Ces produits doivent être récupérés séparément par le personnel.', margin, y); y += 5;
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(180, 83, 9);
+      pdf.text('PRODUITS HORS DEPOT - a preparer', M, y); y += 3;
+      pdf.setFontSize(7.5); pdf.setFont('helvetica', 'italic'); pdf.setTextColor(140);
+      pdf.text('Ces produits doivent etre recuperes separement par le personnel.', M, y); y += 5;
       drawTable(
-        ['✓', 'Désignation', 'Qté', 'Prix unit.', 'Total'],
-        [10, 80, 16, 34, 42],
+        ['[ ]', 'Designation', 'Qte', 'Prix unitaire', 'Total'],
+        [10, 86, 14, 38, 32],
+        ['L', 'L', 'R', 'R', 'R'],
         lignesHors.map(l => [
-          '☐',
-          l.produitNom.length > 38 ? l.produitNom.slice(0, 37) + '…' : l.produitNom,
+          '[ ]',
+          trunc(l.produitNom, 44),
           String(l.quantite),
-          l.prix.toLocaleString('fr-FR') + ' F',
-          (l.quantite * l.prix).toLocaleString('fr-FR') + ' F',
+          fmtF(l.prix),
+          fmtF(l.quantite * l.prix),
         ]),
         [180, 83, 9],
       );
     }
 
-    // ── Totaux ────────────────────────────────────────────────
-    pdf.setDrawColor(0); pdf.setLineWidth(0.4);
-    pdf.line(margin, y, pageW - margin, y); y += 5;
+    // ── Bloc totaux ──────────────────────────────────────────
+    const totW = 85;
+    const totX = pageW - M - totW;
 
-    pdf.setFontSize(10); pdf.setTextColor(0);
     if (devis.totalHorsDepot > 0) {
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('Sous-total dépôt', pageW - margin - 55, y);
-      pdf.text(devis.totalDepot.toLocaleString('fr-FR') + ' FCFA', pageW - margin, y, { align: 'right' });
-      y += 6;
-      pdf.setTextColor(180, 83, 9);
-      pdf.text('Sous-total hors dépôt', pageW - margin - 55, y);
-      pdf.text(devis.totalHorsDepot.toLocaleString('fr-FR') + ' FCFA', pageW - margin, y, { align: 'right' });
-      y += 6;
-      pdf.setTextColor(0);
+      pdf.setFillColor(250, 251, 255);
+      pdf.roundedRect(totX, y, totW, 8, 1, 1, 'F');
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(80);
+      pdf.text('Sous-total depot', totX + 3, y + 5.5);
+      pdf.setFont('helvetica', 'bold'); pdf.setTextColor(30);
+      pdf.text(fmt(devis.totalDepot), totX + totW - 2, y + 5.5, { align: 'right' });
+      y += 9;
+
+      pdf.setFillColor(255, 249, 240);
+      pdf.roundedRect(totX, y, totW, 8, 1, 1, 'F');
+      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(180, 83, 9);
+      pdf.text('Sous-total hors depot', totX + 3, y + 5.5);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(fmt(devis.totalHorsDepot), totX + totW - 2, y + 5.5, { align: 'right' });
+      y += 10;
     }
-    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
-    pdf.text('TOTAL GÉNÉRAL', pageW - margin - 55, y);
-    pdf.text(devis.totalGeneral.toLocaleString('fr-FR') + ' FCFA', pageW - margin, y, { align: 'right' });
+
+    // Total général
+    pdf.setFillColor(49, 70, 145);
+    pdf.roundedRect(totX, y, totW, 11, 2, 2, 'F');
+    pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(255);
+    pdf.text('TOTAL GENERAL', totX + 3, y + 7);
+    pdf.setFontSize(10);
+    pdf.text(fmt(devis.totalGeneral), totX + totW - 2, y + 7, { align: 'right' });
 
     pdf.save(`${devis.numeroDevis}.pdf`);
   }
