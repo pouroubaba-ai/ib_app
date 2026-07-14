@@ -9,7 +9,7 @@ import AppLayout from '@/components/AppLayout';
 import { useRouter, useParams } from 'next/navigation';
 import { formatMontant, formatDate } from '@/lib/format';
 import {
-  ArrowLeft, Package, CheckCircle2, XCircle, Share2, Printer,
+  ArrowLeft, Package, CheckCircle2, XCircle, Share2, Download,
   Edit2, Check, X, AlertTriangle,
 } from 'lucide-react';
 
@@ -288,150 +288,151 @@ export default function FicheDevisPage() {
     window.open(url, '_blank');
   }
 
-  function imprimer() {
+  async function telecharger() {
     if (!devis) return;
+    const { jsPDF } = await import('jspdf');
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+
     const lignesDepot = devis.lignes.filter(l => !l.horsDepot);
-    const lignesHors = devis.lignes.filter(l => l.horsDepot);
+    const lignesHors  = devis.lignes.filter(l => l.horsDepot);
+    const pageW = 210;
+    const margin = 14;
+    const colW = pageW - margin * 2;
+    let y = margin;
 
-    const html = `
-      <!DOCTYPE html>
-      <html lang="fr">
-      <head>
-        <meta charset="UTF-8">
-        <title>Devis ${devis.numeroDevis}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; font-size: 12px; color: #111; padding: 20px; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; border-bottom: 2px solid #111; padding-bottom: 16px; }
-          .boutique-nom { font-size: 20px; font-weight: bold; }
-          .boutique-info { font-size: 11px; color: #555; margin-top: 4px; }
-          .devis-meta { text-align: right; }
-          .devis-numero { font-size: 16px; font-weight: bold; }
-          .client-block { margin-bottom: 20px; padding: 12px; background: #f5f5f5; border-radius: 6px; }
-          .section-title { font-weight: bold; font-size: 13px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #ddd; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-          th { background: #111; color: #fff; padding: 8px 10px; text-align: left; font-size: 11px; }
-          td { padding: 8px 10px; border-bottom: 1px solid #eee; }
-          tr:nth-child(even) td { background: #fafafa; }
-          .checkbox-col { width: 40px; text-align: center; }
-          .checkbox { display: inline-block; width: 16px; height: 16px; border: 2px solid #111; border-radius: 3px; }
-          .total-row { font-weight: bold; font-size: 14px; text-align: right; padding: 8px 10px; }
-          .hors-depot-section { margin-top: 20px; }
-          .hors-depot-section .section-title { color: #b45309; border-color: #fcd34d; }
-          .hors-depot-section th { background: #b45309; }
-          .note { font-size: 10px; color: #888; margin-top: 8px; }
-          .totaux { margin-top: 16px; border-top: 2px solid #111; padding-top: 12px; }
-          .totaux-row { display: flex; justify-content: space-between; padding: 4px 0; }
-          .totaux-total { font-size: 16px; font-weight: bold; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div style="display:flex;align-items:center;gap:12px;">
-            ${boutiqueInfo?.logo ? `<img src="${boutiqueInfo.logo}" alt="Logo" style="height:56px;width:auto;max-width:100px;object-fit:contain;" />` : ''}
-            <div>
-              <div class="boutique-nom">${boutiqueInfo?.nom || 'IBD Kunda'}</div>
-              <div class="boutique-info">${boutiqueInfo?.telephone ? '📞 ' + boutiqueInfo.telephone : ''}</div>
-              <div class="boutique-info">${boutiqueInfo?.adresse ? '📍 ' + boutiqueInfo.adresse : ''}</div>
-            </div>
-          </div>
-          <div class="devis-meta">
-            <div class="devis-numero">DEVIS</div>
-            <div style="font-size:13px; margin-top:4px;">${devis.numeroDevis}</div>
-            <div style="color:#555; margin-top:4px;">${formatDate(devis.date)}</div>
-          </div>
-        </div>
-
-        <div class="client-block">
-          <strong>Client :</strong> ${devis.clientNom}
-        </div>
-
-        ${lignesDepot.length > 0 ? `
-        <div class="section-title">Produits dépôt</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Désignation</th>
-              <th>Unité</th>
-              <th>Quantité</th>
-              <th>Prix unitaire</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${lignesDepot.map(l => `
-              <tr>
-                <td>${l.produitNom}</td>
-                <td>${l.typeUnite === 'C' ? 'Carton' : 'Unité'}</td>
-                <td>${l.quantite}</td>
-                <td>${l.prix.toLocaleString('fr-FR')} FCFA</td>
-                <td><strong>${(l.quantite * l.prix).toLocaleString('fr-FR')} FCFA</strong></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>` : ''}
-
-        ${lignesHors.length > 0 ? `
-        <div class="hors-depot-section">
-          <div class="section-title">Produits à préparer (hors dépôt)</div>
-          <div class="note">Ces produits doivent être récupérés séparément par le personnel.</div>
-          <br/>
-          <table>
-            <thead>
-              <tr>
-                <th class="checkbox-col">✓</th>
-                <th>Désignation</th>
-                <th>Quantité</th>
-                <th>Prix unitaire</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${lignesHors.map(l => `
-                <tr>
-                  <td class="checkbox-col"><div class="checkbox"></div></td>
-                  <td>${l.produitNom}</td>
-                  <td>${l.quantite}</td>
-                  <td>${l.prix.toLocaleString('fr-FR')} FCFA</td>
-                  <td><strong>${(l.quantite * l.prix).toLocaleString('fr-FR')} FCFA</strong></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>` : ''}
-
-        <div class="totaux">
-          ${devis.totalHorsDepot > 0 ? `
-            <div class="totaux-row">
-              <span>Sous-total dépôt</span>
-              <span>${devis.totalDepot.toLocaleString('fr-FR')} FCFA</span>
-            </div>
-            <div class="totaux-row" style="color:#b45309;">
-              <span>Sous-total hors dépôt</span>
-              <span>${devis.totalHorsDepot.toLocaleString('fr-FR')} FCFA</span>
-            </div>
-          ` : ''}
-          <div class="totaux-row totaux-total">
-            <span>TOTAL GÉNÉRAL</span>
-            <span>${devis.totalGeneral.toLocaleString('fr-FR')} FCFA</span>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden';
-    document.body.appendChild(iframe);
-    const iDoc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (iDoc) {
-      iDoc.open();
-      iDoc.write(html);
-      iDoc.close();
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
+    // ── Logo + en-tête boutique ──────────────────────────────
+    if (boutiqueInfo?.logo) {
+      try {
+        const ext = boutiqueInfo.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+        pdf.addImage(boutiqueInfo.logo, ext, margin, y, 28, 14, undefined, 'FAST');
+        pdf.setFontSize(14); pdf.setFont('helvetica', 'bold');
+        pdf.text(boutiqueInfo.nom || '', margin + 32, y + 5);
+        pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(80);
+        if (boutiqueInfo.telephone) pdf.text(boutiqueInfo.telephone, margin + 32, y + 10);
+        if (boutiqueInfo.adresse)   pdf.text(boutiqueInfo.adresse,   margin + 32, y + 14);
+      } catch {
+        pdf.setFontSize(14); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
+        pdf.text(boutiqueInfo?.nom || '', margin, y + 6);
+      }
+    } else {
+      pdf.setFontSize(14); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
+      pdf.text(boutiqueInfo?.nom || 'IBD Kunda', margin, y + 6);
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(80);
+      if (boutiqueInfo?.telephone) pdf.text(boutiqueInfo.telephone, margin, y + 11);
+      if (boutiqueInfo?.adresse)   pdf.text(boutiqueInfo.adresse,   margin, y + 15);
     }
-    setTimeout(() => document.body.removeChild(iframe), 2000);
+
+    // Numéro de devis (droite)
+    pdf.setFontSize(18); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
+    pdf.text('DEVIS', pageW - margin, y + 4, { align: 'right' });
+    pdf.setFontSize(10); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(80);
+    pdf.text(devis.numeroDevis, pageW - margin, y + 10, { align: 'right' });
+    pdf.text(formatDate(devis.date), pageW - margin, y + 15, { align: 'right' });
+
+    y += 22;
+    pdf.setDrawColor(0); pdf.setLineWidth(0.4);
+    pdf.line(margin, y, pageW - margin, y);
+    y += 6;
+
+    // ── Client ───────────────────────────────────────────────
+    pdf.setFillColor(245, 245, 245);
+    pdf.roundedRect(margin, y, colW, 10, 2, 2, 'F');
+    pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
+    pdf.text('Client :', margin + 3, y + 6.5);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(devis.clientNom, margin + 20, y + 6.5);
+    y += 16;
+
+    // ── Helper tableau ────────────────────────────────────────
+    function drawTable(
+      headers: string[],
+      widths: number[],
+      rows: string[][],
+      headerBg: [number, number, number] = [17, 17, 17],
+    ) {
+      const rowH = 7;
+      // header
+      pdf.setFillColor(...headerBg);
+      pdf.rect(margin, y, colW, rowH, 'F');
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(255);
+      let x = margin + 2;
+      headers.forEach((h, i) => { pdf.text(h, x, y + 5); x += widths[i]; });
+      y += rowH;
+
+      // rows
+      pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0);
+      rows.forEach((row, ri) => {
+        if (ri % 2 === 1) { pdf.setFillColor(250, 250, 250); pdf.rect(margin, y, colW, rowH, 'F'); }
+        x = margin + 2;
+        row.forEach((cell, ci) => {
+          pdf.setFontSize(9);
+          pdf.text(cell, x, y + 5);
+          x += widths[ci];
+        });
+        pdf.setDrawColor(230); pdf.line(margin, y + rowH, margin + colW, y + rowH);
+        y += rowH;
+      });
+      y += 4;
+    }
+
+    // ── Produits dépôt ────────────────────────────────────────
+    if (lignesDepot.length > 0) {
+      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0);
+      pdf.text('Produits dépôt', margin, y); y += 5;
+      drawTable(
+        ['Désignation', 'Unité', 'Qté', 'Prix unit.', 'Total'],
+        [70, 22, 16, 34, 40],
+        lignesDepot.map(l => [
+          l.produitNom.length > 32 ? l.produitNom.slice(0, 31) + '…' : l.produitNom,
+          l.typeUnite === 'C' ? 'Carton' : 'Unité',
+          String(l.quantite),
+          l.prix.toLocaleString('fr-FR') + ' F',
+          (l.quantite * l.prix).toLocaleString('fr-FR') + ' F',
+        ]),
+      );
+    }
+
+    // ── Produits hors dépôt ───────────────────────────────────
+    if (lignesHors.length > 0) {
+      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(180, 83, 9);
+      pdf.text('Produits à préparer (hors dépôt)', margin, y); y += 3;
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'italic'); pdf.setTextColor(120);
+      pdf.text('Ces produits doivent être récupérés séparément par le personnel.', margin, y); y += 5;
+      drawTable(
+        ['✓', 'Désignation', 'Qté', 'Prix unit.', 'Total'],
+        [10, 80, 16, 34, 42],
+        lignesHors.map(l => [
+          '☐',
+          l.produitNom.length > 38 ? l.produitNom.slice(0, 37) + '…' : l.produitNom,
+          String(l.quantite),
+          l.prix.toLocaleString('fr-FR') + ' F',
+          (l.quantite * l.prix).toLocaleString('fr-FR') + ' F',
+        ]),
+        [180, 83, 9],
+      );
+    }
+
+    // ── Totaux ────────────────────────────────────────────────
+    pdf.setDrawColor(0); pdf.setLineWidth(0.4);
+    pdf.line(margin, y, pageW - margin, y); y += 5;
+
+    pdf.setFontSize(10); pdf.setTextColor(0);
+    if (devis.totalHorsDepot > 0) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Sous-total dépôt', pageW - margin - 55, y);
+      pdf.text(devis.totalDepot.toLocaleString('fr-FR') + ' FCFA', pageW - margin, y, { align: 'right' });
+      y += 6;
+      pdf.setTextColor(180, 83, 9);
+      pdf.text('Sous-total hors dépôt', pageW - margin - 55, y);
+      pdf.text(devis.totalHorsDepot.toLocaleString('fr-FR') + ' FCFA', pageW - margin, y, { align: 'right' });
+      y += 6;
+      pdf.setTextColor(0);
+    }
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+    pdf.text('TOTAL GÉNÉRAL', pageW - margin - 55, y);
+    pdf.text(devis.totalGeneral.toLocaleString('fr-FR') + ' FCFA', pageW - margin, y, { align: 'right' });
+
+    pdf.save(`${devis.numeroDevis}.pdf`);
   }
 
   if (loading) return (
@@ -606,11 +607,11 @@ export default function FicheDevisPage() {
                 WhatsApp
               </button>
               <button
-                onClick={imprimer}
+                onClick={telecharger}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
               >
-                <Printer size={15} />
-                Imprimer
+                <Download size={15} />
+                Télécharger PDF
               </button>
             </div>
 
