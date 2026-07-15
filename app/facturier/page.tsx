@@ -44,20 +44,11 @@ export default function FacturierDocumentsPage() {
     async function load() {
       const adminUid = profile!.adminUid;
       try {
-        const [docSnap, partSnap] = await Promise.all([
-          getDocs(query(
-            collection(db, 'documents_stock'),
-            where('userId', '==', adminUid),
-            where('typeDocument', '==', 'Sortie'),
-          )),
-          getDocs(query(
-            collection(db, 'Partenaire'),
-            where('userId', '==', adminUid),
-            where('type', '==', 'boutique'),
-          )),
-        ]);
-
-        const boutiques = new Set<string>(partSnap.docs.map(d => (d.data().nom || '').toLowerCase()));
+        const docSnap = await getDocs(query(
+          collection(db, 'documents_stock'),
+          where('userId', '==', adminUid),
+          where('typeDocument', '==', 'Sortie'),
+        ));
 
         const data: DocSortie[] = docSnap.docs
           .map(d => ({
@@ -71,8 +62,6 @@ export default function FacturierDocumentsPage() {
             date: d.data().date,
           }))
           .filter(d => {
-            if (boutiques.has(d.clientNom.toLowerCase())) return false;
-            // Toujours afficher les documents avec retour en attente (peu importe la date)
             if (d.facturierPendingRetour) return true;
             const today = isToday(d.date);
             const traite = d.facturierTraites.length >= d.nombreDeProduit && d.nombreDeProduit > 0;

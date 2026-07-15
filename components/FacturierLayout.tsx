@@ -24,16 +24,11 @@ export default function FacturierLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!profile) return;
     async function loadBadge() {
-      const [docSnap, partSnap, retourSnap] = await Promise.all([
+      const [docSnap, retourSnap] = await Promise.all([
         getDocs(query(
           collection(db, 'documents_stock'),
           where('userId', '==', profile!.adminUid),
           where('typeDocument', '==', 'Sortie'),
-        )),
-        getDocs(query(
-          collection(db, 'Partenaire'),
-          where('userId', '==', profile!.adminUid),
-          where('type', '==', 'boutique'),
         )),
         getDocs(query(
           collection(db, 'mouvements'),
@@ -41,10 +36,6 @@ export default function FacturierLayout({ children }: { children: React.ReactNod
           where('typeTransaction', '==', 'Retour'),
         )),
       ]);
-
-      const boutiques = new Set<string>(
-        partSnap.docs.map(d => (d.data().nom || '').toLowerCase())
-      );
 
       // Grouper retours par docId
       const retourIdsByDoc: Record<string, string[]> = {};
@@ -59,16 +50,14 @@ export default function FacturierLayout({ children }: { children: React.ReactNod
       let count = 0;
       docSnap.docs.forEach(d => {
         const data = d.data();
-        // Ignorer les boutiques
-        if (boutiques.has((data.clientNom || '').toLowerCase())) return;
         const traites: string[] = data.facturierTraites ?? [];
         const nbProd: number = data.nombreDeProduit || 0;
         const retoursVus: string[] = data.facturierRetoursVus ?? [];
         const retourIds = retourIdsByDoc[d.id] ?? [];
         const hasPendingRetour = retourIds.some(rid => !retoursVus.includes(rid));
-        const toutTraite = nbProd > 0 && traites.length >= nbProd;
-        // Non géré = pas tout traité OU retour en attente
-        if (!toutTraite || hasPendingRetour) count++;
+        // Même logique que la page : en cours = pas tout traité ET pas de retour en attente
+        const enCours = traites.length < nbProd && !hasPendingRetour;
+        if (enCours || hasPendingRetour) count++;
       });
 
       setNbNonGeres(count);
