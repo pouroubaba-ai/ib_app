@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   collection, query, where, getDocs, doc, serverTimestamp,
@@ -14,7 +14,7 @@ import {
   Edit2, Check, Package2, Ship, AlertCircle, History, Clock, ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 
-/* ── types ─────────────────────────────────────────────────── */
+/* - types - */
 type Etape = 'liste' | 'creation' | 'fiche';
 
 interface Importation {
@@ -49,7 +49,7 @@ interface Modification {
   ancienneValeur: any; nouvelleValeur: any; date: any;
 }
 
-/* ── layout sans sidebar ────────────────────────────────────── */
+/* - layout sans sidebar - */
 function FullLayout({ children }: { children: React.ReactNode }) {
   return <div className="min-h-screen bg-gray-50 dark:bg-gray-950">{children}</div>;
 }
@@ -62,13 +62,13 @@ export default function ImportationPage() {
   const [etape, setEtape] = useState<Etape>('liste');
   const [importationSelectee, setImportationSelectee] = useState<Importation | null>(null);
 
-  /* ── liste ── */
+  /* - liste - */
   const [importations, setImportations] = useState<Importation[]>([]);
   const [loadingListe, setLoadingListe] = useState(true);
   const [filtreStatut, setFiltreStatut] = useState<'tout' | 'en_cours' | 'traite' | 'termine'>('tout');
   const [triValeur, setTriValeur] = useState<'aucun' | 'desc' | 'asc'>('aucun');
 
-  /* ── création ── */
+  /* - création - */
   const [produits, setProduits] = useState<ProduitDB[]>([]);
   const [lignesCreation, setLignesCreation] = useState<LigneCreation[]>([]);
   const [recherche, setRecherche] = useState('');
@@ -81,7 +81,7 @@ export default function ImportationPage() {
   const [nouvPrix, setNouvPrix] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  /* ── fiche ── */
+  /* - fiche - */
   const [lignesFiche, setLignesFiche] = useState<LigneFiche[]>([]);
   const [modifications, setModifications] = useState<Modification[]>([]);
   const [loadingFiche, setLoadingFiche] = useState(false);
@@ -443,7 +443,7 @@ export default function ImportationPage() {
     return map;
   }, [modifications]);
 
-  /* ── helpers statut (utilisés dans fiche et liste) ── */
+  /* - helpers statut (utilisés dans fiche et liste) - */
   const statutLabel = (s?: string) => {
     if (s === 'traite') return 'Traité';
     if (s === 'termine') return 'Terminé';
@@ -762,7 +762,7 @@ export default function ImportationPage() {
         {loadingFiche ? (
           <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>
         ) : tabFiche === 'produits' ? (
-          /* ── ONGLET PRODUITS ── */
+          /* - ONGLET PRODUITS - */
           <>
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
@@ -925,7 +925,7 @@ export default function ImportationPage() {
           )}
           </>
         ) : (
-          /* ── ONGLET MODIFICATIONS ── */
+          /* - ONGLET MODIFICATIONS - */
           <div className="space-y-2">
             {modifications.length === 0 ? (
               <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700 p-12 text-center">
@@ -1100,7 +1100,7 @@ export default function ImportationPage() {
           </div>
         ) : (
           <>
-            {/* ── Mobile cards ── */}
+            {/* - Mobile cards - */}
             <div className="sm:hidden space-y-2">
               {importationsFiltrees.map(imp => (
                 <div key={imp.id} onClick={() => ouvrirFiche(imp)}
@@ -1142,7 +1142,7 @@ export default function ImportationPage() {
               </div>
             </div>
 
-            {/* ── Desktop table ── */}
+            {/* - Desktop table - */}
             <div className="hidden sm:block bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">

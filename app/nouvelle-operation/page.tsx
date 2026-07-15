@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState, useRef, useMemo } from 'react';
 import {
   collection, getDocs, query, where, doc, writeBatch, serverTimestamp, increment,
@@ -11,7 +11,7 @@ import {
   Search, X, Trash2, ArrowUpCircle, ArrowDownCircle, CheckCircle2, Settings2,
 } from 'lucide-react';
 
-/* ─── Types ─────────────────────────────────────────────── */
+/* --- Types --- */
 type Sens = 'Entrée' | 'Sortie';
 
 interface Produit {
@@ -36,7 +36,7 @@ interface Ligne {
   prix: number;
 }
 
-/* ─── Helpers ────────────────────────────────────────────── */
+/* - Helpers - */
 function genNumero(sens: Sens) {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -60,7 +60,7 @@ function totalLigne(l: Ligne) {
 }
 
 
-/* ─── Page ───────────────────────────────────────────────── */
+/* - Page - */
 export default function NouvelleOperationPage() {
   const { user, profile } = useAuth();
   const router = useRouter();
@@ -89,7 +89,7 @@ export default function NouvelleOperationPage() {
   const defautRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null); // garde la ref pour éviter la fermeture prématurée
 
-  /* ── Init sens par défaut ── */
+  /* - Init sens par défaut - */
   useEffect(() => {
     if (isFacturier) { setSens('Sortie'); setSensDefaut('Sortie'); return; }
     const saved = localStorage.getItem('defaultSens') as Sens | null;
@@ -98,7 +98,7 @@ export default function NouvelleOperationPage() {
     setSens(def);
   }, [isFacturier]);
 
-  /* ── Chargement Firestore ── */
+  /* - Chargement Firestore - */
   useEffect(() => {
     if (!dataUid) return;
     async function load() {
@@ -116,7 +116,7 @@ export default function NouvelleOperationPage() {
     load();
   }, [dataUid]);
 
-  /* ── Fermer panels au clic extérieur ── */
+  /* - Fermer panels au clic extérieur - */
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (partenaireRef.current && !partenaireRef.current.contains(e.target as Node)) {
@@ -137,24 +137,24 @@ export default function NouvelleOperationPage() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  /* ── Produits déjà en table ── */
+  /* - Produits déjà en table - */
   const idsAjoutes = useMemo(() => new Set(lignes.map(l => l.produit.id)), [lignes]);
 
-  /* ── Autocomplete ── */
+  /* - Autocomplete - */
   const produitsFiltres = useMemo(() => {
     if (!rechercheProduit) return [];
     const q = rechercheProduit.toLowerCase();
     return produits.filter(p => p.designation.toLowerCase().includes(q) && !idsAjoutes.has(p.id)).slice(0, 8);
   }, [produits, rechercheProduit, idsAjoutes]);
 
-  /* ── Partenaires filtrés ── */
+  /* - Partenaires filtrés - */
   const partenairesFiltres = useMemo(() => {
     if (!recherchePartenaire) return partenaires;
     const q = recherchePartenaire.toLowerCase();
     return partenaires.filter(p => p.nom.toLowerCase().includes(q));
   }, [partenaires, recherchePartenaire]);
 
-  /* ── Ajouter un produit ── */
+  /* - Ajouter un produit - */
   function ajouterProduit(p: Produit) {
     const key = `${p.id}-${Date.now()}`;
     setLignes(prev => [...prev, { key, produit: p, typeUnite: 'C', quantite: 1, prix: prixParTypeUnite(p, 'C') }]);
@@ -168,7 +168,7 @@ export default function NouvelleOperationPage() {
     }, 60);
   }
 
-  /* ── Modifier une ligne ── */
+  /* - Modifier une ligne - */
   function updateLigne(key: string, changes: Partial<Pick<Ligne, 'typeUnite' | 'quantite' | 'prix'>>) {
     setLignes(prev => prev.map(l => {
       if (l.key !== key) return l;
@@ -187,7 +187,7 @@ export default function NouvelleOperationPage() {
 
   const totalGeneral = lignes.reduce((s, l) => s + totalLigne(l), 0);
 
-  /* ── Changer défaut ── */
+  /* - Changer défaut - */
   function changerDefaut(s: Sens) {
     setSensDefaut(s);
     setSens(s);
@@ -195,7 +195,7 @@ export default function NouvelleOperationPage() {
     setShowDefautMenu(false);
   }
 
-  /* ── Valider ── */
+  /* - Valider - */
   async function valider() {
     if (lignes.length === 0 || !user || !dataUid) return;
     if (!partenaire) { setErreur(sens === 'Entrée' ? 'Veuillez sélectionner un fournisseur.' : 'Veuillez sélectionner un client.'); return; }
@@ -278,7 +278,7 @@ export default function NouvelleOperationPage() {
     <AppLayout>
       <div className="max-w-5xl mx-auto flex flex-col gap-5">
 
-        {/* ── ENTÊTE ──────────────────────────────────────────── */}
+        {/* - ENTÊTE - */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-5">
           <div className="flex flex-wrap items-center gap-3">
 
@@ -345,7 +345,7 @@ export default function NouvelleOperationPage() {
                   <span className="hidden sm:inline text-xs">Défaut : <strong>{sensDefaut}</strong></span>
                 </button>
                 {showDefautMenu && (
-                  <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg z-20 p-3 space-y-1">
+                  <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg z-20 p-3 space-y-1">
                     <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold px-2 mb-2">Opération par défaut</p>
                     {(['Entrée', 'Sortie'] as Sens[]).map(s => (
                       <button key={s} onClick={() => changerDefaut(s)}
@@ -361,7 +361,7 @@ export default function NouvelleOperationPage() {
           </div>
         </div>
 
-        {/* ── CORPS ────────────────────────────────────────────── */}
+        {/* - CORPS - */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-visible">
 
           {/* Barre de recherche produit */}
@@ -418,14 +418,111 @@ export default function NouvelleOperationPage() {
             )}
           </div>
 
-          {/* Tableau */}
-          {lignes.length === 0 ? (
+          {/* Vide */}
+          {lignes.length === 0 && (
             <div className="py-16 text-center">
               <p className="text-gray-400 text-sm">Aucun produit ajouté</p>
               <p className="text-gray-300 dark:text-gray-600 text-xs mt-1">Utilisez la barre ci-dessus pour ajouter des produits</p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
+          )}
+
+          {/* - MOBILE : cartes (< md) - */}
+          {lignes.length > 0 && (
+            <div className="md:hidden divide-y divide-gray-50 dark:divide-gray-800">
+              {lignes.map((l, i) => {
+                const dispo = stockDispo(l.produit, l.typeUnite);
+                const depasse = sens === 'Sortie' && l.quantite > dispo;
+                return (
+                  <div key={l.key} className={`p-4 ${depasse ? 'bg-red-50/40 dark:bg-red-900/10' : ''}`}>
+                    {/* Ligne 1 : numéro + nom + supprimer */}
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs font-bold text-gray-300 shrink-0">{i + 1}</span>
+                        <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-tight">{l.produit.designation}</p>
+                      </div>
+                      <button onClick={() => supprimerLigne(l.key)}
+                        className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors shrink-0">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+
+                    {/* Ligne 2 : Type + Stock dispo */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 text-xs font-semibold">
+                        {(['U', 'C'] as const).map(t => (
+                          <button key={t} onClick={() => updateLigne(l.key, { typeUnite: t })}
+                            className={`px-4 py-2 transition-colors
+                              ${l.typeUnite === t ? 'bg-indigo-600 text-white' : 'text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800'}`}>
+                            {t === 'U' ? 'Unité' : 'Carton'}
+                          </button>
+                        ))}
+                      </div>
+                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full
+                        ${dispo === 0 ? 'bg-red-100 text-red-600' : dispo < 5 ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                        {dispo.toLocaleString('fr-FR')} {l.typeUnite} dispo
+                      </span>
+                    </div>
+
+                    {/* Ligne 3 : Quantité +/− + Prix + Total */}
+                    <div className="flex items-center gap-3">
+                      {/* Stepper quantité */}
+                      <div className={`flex items-center rounded-xl border overflow-hidden ${depasse ? 'border-red-400' : 'border-gray-200 dark:border-gray-600'}`}>
+                        <button
+                          onClick={() => {
+                            const v = Math.max(1, l.quantite - 1);
+                            updateLigne(l.key, { quantite: v });
+                          }}
+                          className="w-10 h-10 flex items-center justify-center text-lg font-bold text-gray-500 bg-gray-50 dark:bg-gray-800 active:bg-gray-100">
+                          −
+                        </button>
+                        <input
+                          id={`qty-${l.key}`}
+                          type="number" min={1}
+                          value={l.quantite}
+                          onChange={e => {
+                            const v = Math.max(1, parseFloat(e.target.value) || 1);
+                            updateLigne(l.key, { quantite: sens === 'Sortie' ? Math.min(v, dispo) : v });
+                          }}
+                          className="w-12 text-center text-sm font-bold border-x border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none py-2"
+                        />
+                        <button
+                          onClick={() => {
+                            const v = sens === 'Sortie' ? Math.min(l.quantite + 1, dispo) : l.quantite + 1;
+                            updateLigne(l.key, { quantite: v });
+                          }}
+                          className="w-10 h-10 flex items-center justify-center text-lg font-bold text-gray-500 bg-gray-50 dark:bg-gray-800 active:bg-gray-100">
+                          +
+                        </button>
+                      </div>
+
+                      {/* Prix */}
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-400 mb-1">Prix unit.</p>
+                        <input
+                          type="number" min={0}
+                          value={l.prix}
+                          onChange={e => updateLigne(l.key, { prix: Math.max(0, parseFloat(e.target.value) || 0) })}
+                          className="w-full text-right px-2 py-2 rounded-lg border border-gray-200 dark:border-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                        />
+                      </div>
+
+                      {/* Total */}
+                      <div className="text-right shrink-0">
+                        <p className="text-xs text-gray-400 mb-1">Total</p>
+                        <p className={`text-sm font-bold ${couleurSens}`}>
+                          {totalLigne(l).toLocaleString('fr-FR')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* - DESKTOP / TABLETTE : tableau (>= md) - */}
+          {lignes.length > 0 && (
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                   <tr>
@@ -447,8 +544,6 @@ export default function NouvelleOperationPage() {
                       <tr key={l.key} className={`border-b border-gray-50 dark:border-gray-800 transition-colors ${depasse ? 'bg-red-50/40 dark:bg-red-900/10' : 'hover:bg-gray-50/50 dark:hover:bg-gray-800/30'}`}>
                         <td className="px-4 py-3 text-xs font-bold text-gray-300 dark:text-gray-600">{i + 1}</td>
                         <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{l.produit.designation}</td>
-
-                        {/* Type U / E */}
                         <td className="px-4 py-3">
                           <div className="flex justify-center">
                             <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 text-xs font-semibold">
@@ -462,16 +557,12 @@ export default function NouvelleOperationPage() {
                             </div>
                           </div>
                         </td>
-
-                        {/* Stock dispo */}
                         <td className="px-4 py-3 text-right">
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full
                             ${dispo === 0 ? 'bg-red-100 text-red-600' : dispo < 5 ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
                             {dispo.toLocaleString('fr-FR')} {l.typeUnite}
                           </span>
                         </td>
-
-                        {/* Quantité */}
                         <td className="px-4 py-3 text-right">
                           <input
                             id={`qty-${l.key}`}
@@ -487,8 +578,6 @@ export default function NouvelleOperationPage() {
                               text-gray-900 dark:text-gray-100`}
                           />
                         </td>
-
-                        {/* Prix unitaire */}
                         <td className="px-4 py-3 text-right">
                           <input
                             type="number" min={0}
@@ -497,13 +586,9 @@ export default function NouvelleOperationPage() {
                             className="w-28 text-right px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                           />
                         </td>
-
-                        {/* Total ligne */}
                         <td className={`px-4 py-3 text-right font-semibold ${couleurSens}`}>
                           {totalLigne(l).toLocaleString('fr-FR')}
                         </td>
-
-                        {/* Supprimer */}
                         <td className="px-3 py-3">
                           <button onClick={() => supprimerLigne(l.key)}
                             className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
@@ -519,8 +604,8 @@ export default function NouvelleOperationPage() {
           )}
         </div>
 
-        {/* ── FOOTER ───────────────────────────────────────────── */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm px-6 py-4 flex items-center justify-between">
+        {/* - FOOTER - */}
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm px-4 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:px-6">
           <div>
             <p className="text-xs text-gray-400 mb-0.5">Total facture</p>
             <p className={`text-2xl font-bold ${couleurSens}`}>
@@ -530,19 +615,19 @@ export default function NouvelleOperationPage() {
             <p className="text-xs text-gray-400 mt-0.5">{lignes.length} produit{lignes.length > 1 ? 's' : ''}</p>
           </div>
 
-          <div className="flex items-center gap-3">
-            {erreur && <p className="text-red-500 text-xs text-right max-w-xs">{erreur}</p>}
-            {succes && <p className="text-green-600 text-xs text-right max-w-xs font-medium">{succes}</p>}
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+            {erreur && <p className="text-red-500 text-xs md:text-right">{erreur}</p>}
+            {succes && <p className="text-green-600 text-xs md:text-right font-medium">{succes}</p>}
             {lignes.length > 0 && (
               <button
                 onClick={() => { setLignes([]); setPartenaire(null); setSens(sensDefaut); setErreur(''); }}
-                className="px-5 py-3 rounded-xl text-sm font-semibold border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-all duration-200"
+                className="w-full md:w-auto px-5 py-3 rounded-xl text-sm font-semibold border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-all duration-200"
               >
                 Tout annuler
               </button>
             )}
             <button onClick={valider} disabled={lignes.length === 0 || saving}
-              className={`flex items-center gap-2.5 px-8 py-3 rounded-xl text-base font-semibold transition-all duration-200 ${bgBouton}`}>
+              className={`w-full md:w-auto flex items-center justify-center gap-2.5 px-8 py-3 rounded-xl text-base font-semibold transition-all duration-200 ${bgBouton}`}>
               <CheckCircle2 size={19} />
               {saving ? 'Validation...' : 'Valider'}
             </button>

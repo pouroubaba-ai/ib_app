@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { collection, query, where, getDocs, doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -8,7 +8,7 @@ import { formatMontant } from '@/lib/format';
 import { TrendingUp, TrendingDown, Search, X, Trash2, CheckCircle, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-/* ─── Types ─────────────────────────────────────── */
+/* - Types - */
 type Sens = 'Entrée' | 'Sortie';
 
 interface Produit {
@@ -27,19 +27,19 @@ interface Ligne {
   motif: string;
 }
 
-/* ─── Motifs par sens ────────────────────────────── */
+/* - Motifs par sens - */
 const MOTIFS: Record<Sens, string[]> = {
   Sortie: ['Vol', 'Abîmé', 'Avarie', 'Perte', 'Don', 'Péremption', 'Erreur de comptage', 'Autre'],
   Entrée: ['Produit retrouvé', 'Erreur de comptage', 'Don reçu', 'Retour non enregistré', 'Ajustement inventaire', 'Autre'],
 };
 
-/* ─── Stock dispo ────────────────────────────────── */
+/* - Stock dispo - */
 function stockDispo(p: Produit, typeUnite: 'U' | 'C') {
   if (typeUnite === 'C') return Math.floor(p.quantite_unitaire_total / p.quantite_par_emballage);
   return p.quantite_unitaire_total;
 }
 
-/* ─── Composant select motif ─────────────────────── */
+/* - Composant select motif - */
 function MotifSelect({ motif, motifs, onChange }: {
   motif: string;
   motifs: string[];
@@ -62,7 +62,7 @@ function MotifSelect({ motif, motifs, onChange }: {
   );
 }
 
-/* ─── Page principale ────────────────────────────── */
+/* - Page principale - */
 export default function ReajustementPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -80,7 +80,7 @@ export default function ReajustementPage() {
   const [succes, setSucces] = useState(false);
   const rechercheRef = useRef<HTMLInputElement>(null);
 
-  /* ── Chargement produits ── */
+  /* - Chargement produits - */
   useEffect(() => {
     if (!user) return;
     getDocs(query(collection(db, 'Produits'), where('userId', '==', user.uid))).then(snap => {
@@ -88,7 +88,7 @@ export default function ReajustementPage() {
     });
   }, [user]);
 
-  /* ── Suggestions ── */
+  /* - Suggestions - */
   const suggestions = useMemo(() => {
     if (!recherche.trim()) return [];
     const q = recherche.toLowerCase();
@@ -122,7 +122,7 @@ export default function ReajustementPage() {
     setLignes(prev => prev.filter(l => l.key !== key));
   }
 
-  /* ── Validation ── */
+  /* - Validation - */
   async function valider() {
     if (!user || lignes.length === 0) return;
 

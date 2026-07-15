@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
@@ -10,7 +10,7 @@ import {
   FileText, RotateCcw, Users, Settings, LogOut, ChevronLeft, ChevronRight,
   ChevronDown, History, Sun, Moon, Ship, ClipboardList, ScrollText,
 } from 'lucide-react';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 type NavChild = { label: string; href: string; icon: React.ElementType };
 type NavItem =
@@ -43,10 +43,10 @@ const nav: NavItem[] = [
   { type: 'link', label: 'Paramètre', href: '/parametre', icon: Settings },
 ];
 
-/* ──────────────────────────────────────────────────
+/* -
    Popup fixe (tooltip ou flyout accordéon)
    position: fixed → échappe à tout overflow:hidden
-────────────────────────────────────────────────── */
+- */
 type PopupState =
   | { kind: 'tooltip'; label: string; y: number }
   | { kind: 'flyout'; label: string; children: NavChild[]; y: number }
@@ -107,9 +107,9 @@ function FixedPopup({ popup, pathname, onMouseEnter, onMouseLeave }: {
   );
 }
 
-/* ──────────────────────────────────────────────────
+/* -
    Accordéon (menu déplié)
-────────────────────────────────────────────────── */
+- */
 function AccordionItem({ item, pathname, open, onToggle }: {
   item: Extract<NavItem, { type: 'accordion' }>;
   pathname: string;
@@ -152,14 +152,17 @@ function AccordionItem({ item, pathname, open, onToggle }: {
   );
 }
 
-/* ──────────────────────────────────────────────────
+/* -
    Sidebar
-────────────────────────────────────────────────── */
-export default function Sidebar() {
+- */
+export default function Sidebar({ mobileOpen = false, onMobileClose = () => {} }: { mobileOpen?: boolean; onMobileClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
   const { theme, toggle } = useTheme();
+
+  // Fermer le drawer mobile à chaque changement de route
+  useEffect(() => { onMobileClose(); }, [pathname]);
 
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -214,9 +217,74 @@ export default function Sidebar() {
     router.push('/login');
   }
 
+  const mobileNavItems = (
+    <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 px-2">
+      {nav.map((item, i) => {
+        if (item.type === 'accordion') {
+          return (
+            <AccordionItem
+              key={i}
+              item={item}
+              pathname={pathname}
+              open={!!accordionOpen[item.label]}
+              onToggle={() => toggleAccordion(item.label)}
+            />
+          );
+        }
+        const Icon = item.icon;
+        const active = pathname === item.href;
+        return (
+          <Link key={item.href} href={item.href}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+              ${active ? 'bg-indigo-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}>
+            <Icon size={18} className="shrink-0" />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+
   return (
     <>
-      <aside className={`flex flex-col shrink-0 overflow-hidden bg-white dark:bg-gray-900
+      {/* - Drawer mobile (< md) - */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          {/* Overlay */}
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onMobileClose} />
+          {/* Panneau */}
+          <div className="relative w-72 max-w-[85vw] flex flex-col bg-white dark:bg-gray-900 h-full shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 dark:border-gray-700">
+              <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">IB APP</span>
+              <button onClick={onMobileClose}
+                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">
+                <ChevronLeft size={20} />
+              </button>
+            </div>
+            {user && (
+              <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
+                <p className="text-xs text-gray-400 truncate">{user.email}</p>
+              </div>
+            )}
+            {mobileNavItems}
+            <div className="px-2 py-3 border-t border-gray-100 dark:border-gray-700 space-y-1">
+              <button onClick={toggle}
+                className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                {theme === 'dark' ? <Sun size={18} className="text-yellow-400" /> : <Moon size={18} />}
+                <span>{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span>
+              </button>
+              <button onClick={() => setConfirmLogout(true)}
+                className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+                <LogOut size={18} />
+                <span>Se déconnecter</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* - Sidebar desktop (>= md) - */}
+      <aside className={`hidden md:flex flex-col shrink-0 overflow-hidden bg-white dark:bg-gray-900
         border-r border-gray-200 dark:border-gray-700 transition-all duration-200
         ${collapsed ? 'w-16' : 'w-64'}`}>
 

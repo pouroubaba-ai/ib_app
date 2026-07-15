@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState, useMemo } from 'react';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -141,7 +141,7 @@ export default function DepotDocumentsPage() {
     setModalAncien(null);
   }
 
-  // ── Rapport du jour PDF ──────────────────────────────────
+  // - Rapport du jour PDF -
   async function telechargerRapport() {
     const aujourdhui = docs.filter(d => isAujourdhui(d.date));
     if (aujourdhui.length === 0) return;
@@ -155,7 +155,7 @@ export default function DepotDocumentsPage() {
     const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
     const trunc = (s: string, max: number) => s.length > max ? s.slice(0, max - 1) + '.' : s;
 
-    // ── Bandeau en-tête ──────────────────────────────────────
+    // - Bandeau en-tête -
     pdf.setFillColor(30, 41, 90);
     pdf.rect(0, 0, pageW, 36, 'F');
 
@@ -182,7 +182,7 @@ export default function DepotDocumentsPage() {
 
     let y = 44;
 
-    // ── Stats résumé ─────────────────────────────────────────
+    // - Stats résumé -
     const nbLivresJour    = aujourdhui.filter(d => d.livraison === 'livre').length;
     const nbNonLivresJour = aujourdhui.filter(d => d.livraison !== 'livre').length;
 
@@ -203,7 +203,7 @@ export default function DepotDocumentsPage() {
     });
     y += 20;
 
-    // ── Bons du jour ─────────────────────────────────────────
+    // - Bons du jour -
     for (const d of aujourdhui) {
       // En-tête du bon
       const estLivre = d.livraison === 'livre';

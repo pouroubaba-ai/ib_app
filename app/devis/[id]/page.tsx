@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState, useMemo } from 'react';
 import {
   doc, getDoc, updateDoc, serverTimestamp, collection, writeBatch, increment, getDocs, query, where,
@@ -294,7 +294,7 @@ export default function FicheDevisPage() {
     window.open(`https://wa.me/?text=${encodeURIComponent(texte)}`, '_blank');
   }
 
-  // ── Helper PDF partagé ────────────────────────────────────
+  // -- Helper PDF partagé ------------------------------------
   async function creerBasePDF(titre: string, bandeauRGB: [number, number, number]) {
     const { jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -388,7 +388,7 @@ export default function FicheDevisPage() {
       getY: () => y, setY: (v: number) => { y = v; } };
   }
 
-  // ── Facture / Devis (avec prix, pour le client) ───────────
+  // -- Facture / Devis (avec prix, pour le client) -----------
   async function telechargerFacture() {
     if (!devis) return;
     const estConfirme = devis.statut === 'confirme';
@@ -431,7 +431,7 @@ export default function FicheDevisPage() {
     pdf.save(`${devis.numeroDevis}-${titre}.pdf`);
   }
 
-  // ── Bon de commande (sans prix, pour le personnel) ─────────
+  // -- Bon de commande (sans prix, pour le personnel) ---------
   async function telechargerBonCommande() {
     if (!devis) return;
     const ctx = await creerBasePDF('BON DE COMMANDE', [30, 30, 30]);

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState } from 'react';
 import {
   collection, getDocs, query, where,
@@ -36,13 +36,13 @@ function LogPanel({ lines }: { lines: LogLine[] }) {
 export default function MigrationPage() {
   const { user } = useAuth();
 
-  /* ── Script 1 : importations ── */
+  /* - Script 1 : importations - */
   const [runningImp, setRunningImp] = useState(false);
   const [doneImp, setDoneImp] = useState(false);
   const [logsImp, setLogsImp] = useState<LogLine[]>([]);
   const [progressImp, setProgressImp] = useState({ done: 0, total: 0 });
 
-  /* ── Script 2 : réajustements ── */
+  /* - Script 2 : réajustements - */
   const [runningReaj, setRunningReaj] = useState(false);
   const [doneReaj, setDoneReaj] = useState(false);
   const [logsReaj, setLogsReaj] = useState<LogLine[]>([]);
@@ -55,11 +55,11 @@ export default function MigrationPage() {
     setLogsReaj(prev => [...prev, { type, msg }]);
   }
 
-  /* ──────────────────────────────────────────────────────────
+  /* -
      Script 1 — Corriger nomClient des mouvements d'importation
      Cherche tous les mouvements Achat dont nomClient ≠ 'Importation'
      et les met à jour.
-  ────────────────────────────────────────────────────────── */
+  - */
   async function corrigerImportations() {
     if (!user) return;
     setRunningImp(true);
@@ -111,11 +111,11 @@ export default function MigrationPage() {
     }
   }
 
-  /* ──────────────────────────────────────────────────────────
+  /* -
      Script 2 — Corriger prix des réajustements sans prix
      Cherche les mouvements Reajustement avec prixUnitaireReel == 0
      ou absent, puis recalcule depuis le produit.
-  ────────────────────────────────────────────────────────── */
+  - */
   async function corrigerReajustements() {
     if (!user) return;
     setRunningReaj(true);
@@ -228,7 +228,7 @@ export default function MigrationPage() {
           </p>
         </div>
 
-        {/* ── Script 1 ── */}
+        {/* - Script 1 - */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-5 mb-4">
           <div className="flex items-start justify-between mb-3">
             <div>
@@ -266,7 +266,7 @@ export default function MigrationPage() {
           </button>
         </div>
 
-        {/* ── Script 2 ── */}
+        {/* - Script 2 - */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-5">
           <div className="flex items-start justify-between mb-3">
             <div>

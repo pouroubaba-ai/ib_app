@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -134,7 +134,7 @@ export default function InventairePage() {
           </div>
         ) : (
           <>
-            {/* ── Mobile cards ── */}
+            {/* - Mobile cards - */}
             <div className="sm:hidden space-y-2">
               {filtered.length === 0 ? (
                 <p className="text-center text-gray-400 py-10">Aucun produit</p>
@@ -165,7 +165,7 @@ export default function InventairePage() {
               </div>
             </div>
 
-            {/* ── Desktop table ── */}
+            {/* - Desktop table - */}
             <div className="hidden sm:block bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">

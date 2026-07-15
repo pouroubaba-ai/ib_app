@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -192,7 +192,7 @@ export default function HistoriqueEntreesPage() {
           <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>
         ) : (
           <>
-            {/* ── Mobile cards ── */}
+            {/* - Mobile cards - */}
             <div className="sm:hidden space-y-2">
               {filtered.length === 0 ? (
                 <p className="text-center text-gray-400 py-10">Aucun résultat</p>
@@ -219,7 +219,7 @@ export default function HistoriqueEntreesPage() {
               )}
             </div>
 
-            {/* ── Desktop table ── */}
+            {/* - Desktop table - */}
             <div className="hidden sm:block bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">

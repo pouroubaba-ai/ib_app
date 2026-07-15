@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect, useMemo } from 'react';
 import {
   collection, getDocs, getDoc, query, where, doc,
@@ -14,7 +14,7 @@ import {
   ArrowUpCircle, ArrowDownCircle, RotateCcw,
 } from 'lucide-react';
 
-/* ─── Types ──────────────────────────────────────────────── */
+/* - Types - */
 type Etape = 'choix' | 'liste' | 'travail';
 type Sens = 'Sortie' | 'Entrée';
 
@@ -55,7 +55,7 @@ interface LigneTravail {
   qteARetourner: number;
 }
 
-/* ─── Helpers ────────────────────────────────────────────── */
+/* - Helpers - */
 function tsOf(d: any): number {
   if (!d) return 0;
   if (d.seconds) return d.seconds * 1000;
@@ -68,7 +68,7 @@ function formatDate(d: any): string {
   return new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-/* ─── Layout plein écran (sans sidebar) ─────────────────── */
+/* - Layout plein écran (sans sidebar) - */
 function FullLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -77,7 +77,7 @@ function FullLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ─── Page ───────────────────────────────────────────────── */
+/* - Page - */
 export default function RetourPage() {
   const { user, profile } = useAuth();
   const dataUid = profile?.adminUid ?? user?.uid ?? '';
@@ -85,19 +85,19 @@ export default function RetourPage() {
   const [etape, setEtape] = useState<Etape>('choix');
   const [sens, setSens] = useState<Sens>('Sortie');
 
-  /* ── Liste ── */
+  /* - Liste - */
   const [docs, setDocs] = useState<DocStock[]>([]);
   const [docIdsAvecRetour, setDocIdsAvecRetour] = useState<Set<string>>(new Set());
   const [loadingListe, setLoadingListe] = useState(false);
   const [plage, setPlage] = useState<PlageDates>({ debut: null, fin: null });
   const [search, setSearch] = useState('');
 
-  /* ── Aperçu "!" ── */
+  /* - Aperçu "!" - */
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [previewMouvs, setPreviewMouvs] = useState<MouvRaw[]>([]);
   const [loadingPreview, setLoadingPreview] = useState(false);
 
-  /* ── Travail ── */
+  /* - Travail - */
   const [selectedDoc, setSelectedDoc] = useState<DocStock | null>(null);
   const [lignes, setLignes] = useState<LigneTravail[]>([]);
   const [loadingTravail, setLoadingTravail] = useState(false);
@@ -105,7 +105,7 @@ export default function RetourPage() {
   const [enCours, setEnCours] = useState(false);
   const [succes, setSucces] = useState(false);
 
-  /* ── Chargement liste documents ── */
+  /* - Chargement liste documents - */
   useEffect(() => {
     if (!user || etape !== 'liste') return;
     setLoadingListe(true);
@@ -139,7 +139,7 @@ export default function RetourPage() {
     load();
   }, [user, etape, sens]);
 
-  /* ── Aperçu "!" — filtre côté client ── */
+  /* - Aperçu "!" — filtre côté client - */
   useEffect(() => {
     if (!previewId || !user) return;
     setLoadingPreview(true);
@@ -152,7 +152,7 @@ export default function RetourPage() {
       });
   }, [previewId, user]);
 
-  /* ── Ouvrir plan de travail ── */
+  /* - Ouvrir plan de travail - */
   async function ouvrirTravail(d: DocStock) {
     if (!user) return;
     setSelectedDoc(d);

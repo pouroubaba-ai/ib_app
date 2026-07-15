@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState, useMemo } from 'react';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -35,7 +35,7 @@ export default function PartenairePage() {
   const [filtre, setFiltre] = useState<Filtre>('tout');
   const [loading, setLoading] = useState(true);
 
-  /* ── Modal ajout ── */
+  /* - Modal ajout - */
   const [showModal, setShowModal] = useState(false);
   const [nom, setNom] = useState('');
   const [type, setType] = useState<TypePartenaire>('partenaire');
@@ -73,7 +73,7 @@ export default function PartenairePage() {
     }
   }
 
-  /* ── Chargement ── */
+  /* - Chargement - */
   useEffect(() => {
     if (!user) return;
     async function load() {
@@ -113,7 +113,7 @@ export default function PartenairePage() {
     load();
   }, [user]);
 
-  /* ── Filtre ── */
+  /* - Filtre - */
   const filtered = useMemo(() => partenaires.filter(p => {
     const matchSearch = !search || p.nom.toLowerCase().includes(search.toLowerCase());
     if (filtre === 'boutique') return matchSearch && p.type === 'boutique';
@@ -128,7 +128,7 @@ export default function PartenairePage() {
     <AppLayout>
       <div className="max-w-7xl mx-auto">
 
-        {/* ── En-tête ── */}
+        {/* - En-tête - */}
         <div className="mb-6 flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Partenaires & Boutiques</h1>
@@ -140,7 +140,7 @@ export default function PartenairePage() {
           </button>
         </div>
 
-        {/* ── Filtres ── */}
+        {/* - Filtres - */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
           {(['tout', 'partenaire', 'boutique'] as Filtre[]).map(f => (
             <button key={f} onClick={() => setFiltre(f)}
@@ -151,7 +151,7 @@ export default function PartenairePage() {
           ))}
         </div>
 
-        {/* ── Recherche ── */}
+        {/* - Recherche - */}
         <div className="relative mb-5 max-w-sm">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un nom..."
@@ -163,7 +163,7 @@ export default function PartenairePage() {
           )}
         </div>
 
-        {/* ── Grille ── */}
+        {/* - Grille - */}
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
@@ -229,7 +229,7 @@ export default function PartenairePage() {
         )}
       </div>
 
-      {/* ── MODAL AJOUT ── */}
+      {/* - MODAL AJOUT - */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md p-6">
