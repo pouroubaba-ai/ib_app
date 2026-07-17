@@ -33,6 +33,7 @@ interface DocSortie {
   facturierTraites: string[];
   facturierRetoursVus: string[];
   hasPendingRetour: boolean; // calculé côté client à partir des mouvements Retour
+  estBoutique: boolean;
   date: any;
 }
 
@@ -46,6 +47,7 @@ export default function FacturierControlePage() {
   const [recherche, setRecherche] = useState('');
   const [retourModalDocId, setRetourModalDocId] = useState<string | null>(null);
   const [filtreStatut, setFiltreStatut] = useState<'tout' | 'en_cours' | 'termine'>('tout');
+  const [filtreType, setFiltreType] = useState<'tout' | 'clients' | 'boutiques'>('tout');
   const [plage, setPlage] = useState<PlageDates>({ debut: null, fin: null });
 
   useEffect(() => {
@@ -106,7 +108,7 @@ export default function FacturierControlePage() {
             date: d.data().date,
           };
         })
-        .filter(d => !boutiques.has(d.clientNom.toLowerCase()));
+        .map(d => ({ ...d, estBoutique: boutiques.has(d.clientNom.toLowerCase()) }));
 
       data.sort((a, b) => (b.date?.seconds || 0) - (a.date?.seconds || 0));
       setDocs(data);
@@ -118,6 +120,8 @@ export default function FacturierControlePage() {
 
   const filtered = useMemo(() => {
     let list = docs;
+    if (filtreType === 'clients') list = list.filter(d => !d.estBoutique);
+    if (filtreType === 'boutiques') list = list.filter(d => d.estBoutique);
     if (recherche) {
       const q = recherche.toLowerCase();
       list = list.filter(d =>
@@ -140,7 +144,7 @@ export default function FacturierControlePage() {
       });
     }
     return list;
-  }, [docs, recherche, filtreStatut, plage]);
+  }, [docs, recherche, filtreStatut, filtreType, plage]);
 
   const nbTermine = useMemo(() =>
     filtered.filter(d => d.facturierTraites.length >= d.nombreDeProduit && d.nombreDeProduit > 0 && !d.hasPendingRetour).length, [filtered]);
@@ -245,7 +249,22 @@ export default function FacturierControlePage() {
           </div>
         )}
 
-        {/* Filtres */}
+        {/* Filtre type */}
+        <div className="flex gap-2 mb-2">
+          {(['tout', 'clients', 'boutiques'] as const).map(f => (
+            <button key={f} onClick={() => setFiltreType(f)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors
+                ${filtreType === f
+                  ? f === 'boutiques' ? 'bg-purple-600 text-white'
+                    : f === 'clients' ? 'bg-blue-600 text-white'
+                    : 'bg-gray-800 text-white dark:bg-gray-100 dark:text-gray-900'
+                  : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-500'}`}>
+              {f === 'tout' ? 'Tout' : f === 'clients' ? 'Clients' : 'Boutiques'}
+            </button>
+          ))}
+        </div>
+
+        {/* Filtres statut */}
         <div className="flex gap-2 mb-3">
           {(['tout', 'en_cours', 'termine'] as const).map(f => (
             <button key={f} onClick={() => setFiltreStatut(f)}
@@ -316,6 +335,11 @@ export default function FacturierControlePage() {
                             ? <CheckCircle2 size={14} className="text-green-500 shrink-0" />
                             : <Clock size={14} className="text-orange-400 shrink-0" />}
                           <p className="font-bold text-gray-900 dark:text-gray-100 truncate">{d.clientNom || '—'}</p>
+                          {d.estBoutique && (
+                            <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+                              Boutique
+                            </span>
+                          )}
                           {pendingRetour && (
                             <button
                               onClick={e => { e.stopPropagation(); setRetourModalDocId(d.id); }}
