@@ -97,6 +97,7 @@ export default function ImportationPage() {
   const [showModalConfirm, setShowModalConfirm] = useState(false);
   const [savingConfirm, setSavingConfirm] = useState(false);
   const [filtreEcart, setFiltreEcart] = useState<'tout' | 'avec_ecart' | 'sans_ecart'>('tout');
+  const [rechercheFiche, setRechercheFiche] = useState('');
 
   /* - ajout produit dans fiche - */
   const [showModalAjoutFiche, setShowModalAjoutFiche] = useState(false);
@@ -113,10 +114,15 @@ export default function ImportationPage() {
   const [erreurAjout, setErreurAjout] = useState('');
 
   const lignesFicheFiltrees = useMemo(() => {
-    if (filtreEcart === 'avec_ecart') return lignesFiche.filter(l => l.depotTraite && l.quantiteDepot !== l.quantite);
-    if (filtreEcart === 'sans_ecart') return lignesFiche.filter(l => !l.depotTraite || l.quantiteDepot === l.quantite);
-    return lignesFiche;
-  }, [lignesFiche, filtreEcart]);
+    let list = lignesFiche;
+    if (filtreEcart === 'avec_ecart') list = list.filter(l => l.depotTraite && l.quantiteDepot !== l.quantite);
+    if (filtreEcart === 'sans_ecart') list = list.filter(l => !l.depotTraite || l.quantiteDepot === l.quantite);
+    if (rechercheFiche.trim()) {
+      const q = rechercheFiche.toLowerCase();
+      list = list.filter(l => l.produitNom.toLowerCase().includes(q));
+    }
+    return list;
+  }, [lignesFiche, filtreEcart, rechercheFiche]);
 
   /* ══════════ LOAD LISTE ══════════ */
   async function chargerImportations() {
@@ -874,6 +880,19 @@ export default function ImportationPage() {
         ) : tabFiche === 'produits' ? (
           /* - ONGLET PRODUITS - */
           <>
+          {/* Recherche produit */}
+          <div className="relative mb-3">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input value={rechercheFiche} onChange={e => setRechercheFiche(e.target.value)}
+              placeholder="Rechercher un produit..."
+              className="w-full pl-9 pr-8 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+            {rechercheFiche && (
+              <button onClick={() => setRechercheFiche('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
           {/* Filtre écart */}
           <div className="flex gap-2 mb-3">
             {(['tout', 'avec_ecart', 'sans_ecart'] as const).map(f => (
