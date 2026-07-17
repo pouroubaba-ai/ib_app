@@ -98,6 +98,20 @@ export default function ImportationPage() {
   const [savingConfirm, setSavingConfirm] = useState(false);
   const [filtreEcart, setFiltreEcart] = useState<'tout' | 'avec_ecart' | 'sans_ecart'>('tout');
 
+  /* - ajout produit dans fiche - */
+  const [showModalAjoutFiche, setShowModalAjoutFiche] = useState(false);
+  const [ajoutRecherche, setAjoutRecherche] = useState('');
+  const [ajoutProduits, setAjoutProduits] = useState<ProduitDB[]>([]);
+  const [ajoutSelectee, setAjoutSelectee] = useState<ProduitDB | null>(null);
+  const [ajoutNom, setAjoutNom] = useState('');
+  const [ajoutQpe, setAjoutQpe] = useState(1);
+  const [ajoutTypeUnite, setAjoutTypeUnite] = useState<'U' | 'C'>('C');
+  const [ajoutQte, setAjoutQte] = useState(0);
+  const [ajoutPrix, setAjoutPrix] = useState(0);
+  const [ajoutEstNouveau, setAjoutEstNouveau] = useState(false);
+  const [savingAjout, setSavingAjout] = useState(false);
+  const [erreurAjout, setErreurAjout] = useState('');
+
   const lignesFicheFiltrees = useMemo(() => {
     if (filtreEcart === 'avec_ecart') return lignesFiche.filter(l => l.depotTraite && l.quantiteDepot !== l.quantite);
     if (filtreEcart === 'sans_ecart') return lignesFiche.filter(l => !l.depotTraite || l.quantiteDepot === l.quantite);
@@ -440,6 +454,86 @@ export default function ImportationPage() {
     }
   }
 
+  /* ══════════ FICHE: AJOUT PRODUIT ══════════ */
+  async function ouvrirModalAjoutFiche() {
+    if (!user) return;
+    const snap = await getDocs(query(collection(db, 'Produits'), where('userId', '==', user.uid)));
+    setAjoutProduits(snap.docs.map(d => ({ id: d.id, ...d.data() } as ProduitDB)));
+    setAjoutRecherche(''); setAjoutSelectee(null);
+    setAjoutNom(''); setAjoutQpe(1); setAjoutTypeUnite('C');
+    setAjoutQte(0); setAjoutPrix(0); setAjoutEstNouveau(false); setErreurAjout('');
+    setShowModalAjoutFiche(true);
+  }
+
+  async function validerAjoutFiche() {
+    if (!user || !importationSelectee) return;
+    if (ajoutQte <= 0) { setErreurAjout('La quantité doit être supérieure à 0.'); return; }
+    if (ajoutEstNouveau && !ajoutNom.trim()) { setErreurAjout('Saisissez un nom de produit.'); return; }
+    if (!ajoutEstNouveau && !ajoutSelectee) { setErreurAjout('Sélectionnez un produit.'); return; }
+
+    setSavingAjout(true); setErreurAjout('');
+    try {
+      const batch = writeBatch(db);
+      const now = serverTimestamp();
+      const impRef = doc(db, 'importations', importationSelectee.id);
+      const estTermine = importationSelectee.statut === 'termine';
+
+      const prixPerUnit = ajoutTypeUnite === 'C' ? ajoutPrix / ajoutQpe : ajoutPrix;
+      const total = ajoutQte * ajoutPrix;
+      const qteU = ajoutTypeUnite === 'C' ? ajoutQte * ajoutQpe : ajoutQte;
+
+      let prodId: string;
+      let prodNom: string;
+
+      if (ajoutEstNouveau) {
+        const newProdRef = doc(collection(db, 'Produits'));
+        prodId = newProdRef.id;
+        prodNom = ajoutNom.trim();
+        batch.set(newProdRef, {
+          userId: user.uid, designation: prodNom,
+          quantite_par_emballage: ajoutQpe, prix_unitaire: prixPerUnit,
+          quantite_unitaire_total: estTermine ? qteU : 0,
+        });
+      } else {
+        prodId = ajoutSelectee!.id;
+        prodNom = ajoutSelectee!.designation;
+        if (estTermine) {
+          batch.update(doc(db, 'Produits', prodId), {
+            quantite_unitaire_total: increment(qteU),
+            prix_unitaire: prixPerUnit,
+          });
+        }
+      }
+
+      const mouvRef = doc(collection(db, 'mouvements'));
+      batch.set(mouvRef, {
+        userId: user.uid, typeDocument: 'Entrée', typeTransaction: 'Achat',
+        produitNom: prodNom, produitId: doc(db, 'Produits', prodId),
+        quantite: ajoutQte, typeUnite: ajoutTypeUnite,
+        prixUnitaireReel: prixPerUnit, totalLigne: total,
+        importationId: impRef, nomClient: 'Importation',
+        estNouveauProduit: ajoutEstNouveau, date: now,
+      });
+
+      const newValeur = lignesFiche.reduce((s, l) => s + l.totalLigne, 0) + total;
+      batch.update(impRef, {
+        nombreDeProduit: increment(1),
+        valeurTotale: newValeur,
+      });
+
+      await batch.commit();
+      router.refresh();
+      setShowModalAjoutFiche(false);
+      await ouvrirFiche(importationSelectee);
+      const updSnap = await getDoc(doc(db, 'importations', importationSelectee.id));
+      if (updSnap.exists()) setImportationSelectee({ id: updSnap.id, ...updSnap.data() } as Importation);
+    } catch (e) {
+      console.error(e); setErreurAjout('Erreur lors de l\'ajout.');
+    } finally {
+      setSavingAjout(false);
+    }
+  }
+
   /* ══════════ MODS PAR PRODUIT ══════════ */
   const modsParProduit = useMemo(() => {
     const map: Record<string, Modification[]> = {};
@@ -727,8 +821,12 @@ export default function ImportationPage() {
             </div>
             <p className="text-xs text-gray-400 mt-0.5">{formatDate(importationSelectee.date)}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <p className="font-bold text-green-600">{formatMontant(importationSelectee.valeurTotale ?? lignesFiche.reduce((s, l) => s + (l.totalLigne || 0), 0))}</p>
+            <button onClick={ouvrirModalAjoutFiche}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors">
+              <Plus size={13} /> Produit
+            </button>
             {importationSelectee.statut !== 'termine' && (
               <button onClick={() => setShowModalConfirm(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors">
@@ -978,6 +1076,124 @@ export default function ImportationPage() {
           </div>
         )}
       </main>
+
+      {/* Modal ajout produit dans fiche */}
+      {showModalAjoutFiche && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowModalAjoutFiche(false)} />
+          <div className="relative bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <p className="font-bold text-gray-900 dark:text-gray-100 mb-4">
+              Ajouter un produit
+              {importationSelectee.statut === 'termine' && (
+                <span className="ml-2 text-xs font-normal text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">Stock crédité immédiatement</span>
+              )}
+            </p>
+
+            {/* Toggle nouveau / existant */}
+            <div className="flex rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-4">
+              <button onClick={() => { setAjoutEstNouveau(false); setAjoutSelectee(null); setAjoutRecherche(''); }}
+                className={`flex-1 py-2 text-xs font-semibold transition-colors ${!ajoutEstNouveau ? 'bg-indigo-600 text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                Produit existant
+              </button>
+              <button onClick={() => { setAjoutEstNouveau(true); setAjoutSelectee(null); }}
+                className={`flex-1 py-2 text-xs font-semibold transition-colors ${ajoutEstNouveau ? 'bg-indigo-600 text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                Nouveau produit
+              </button>
+            </div>
+
+            {!ajoutEstNouveau ? (
+              /* Recherche produit existant */
+              <div className="mb-4">
+                <div className="relative mb-2">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input value={ajoutRecherche} onChange={e => setAjoutRecherche(e.target.value)}
+                    placeholder="Rechercher un produit..."
+                    className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                </div>
+                <div className="max-h-40 overflow-y-auto space-y-1">
+                  {ajoutProduits
+                    .filter(p => p.designation.toLowerCase().includes(ajoutRecherche.toLowerCase()))
+                    .slice(0, 8)
+                    .map(p => (
+                      <button key={p.id} onClick={() => {
+                        setAjoutSelectee(p);
+                        setAjoutQpe(p.quantite_par_emballage || 1);
+                        setAjoutPrix(Math.round((p.prix_unitaire || 0) * (p.quantite_par_emballage || 1)));
+                        setAjoutRecherche(p.designation);
+                      }}
+                        className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors
+                          ${ajoutSelectee?.id === p.id ? 'bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>
+                        {p.designation}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            ) : (
+              /* Nouveau produit */
+              <div className="space-y-3 mb-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Nom du produit</label>
+                  <input value={ajoutNom} onChange={e => setAjoutNom(e.target.value)}
+                    placeholder="Désignation..."
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Qté par emballage (QPE)</label>
+                  <input type="number" min={1} value={ajoutQpe} onChange={e => setAjoutQpe(parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                </div>
+              </div>
+            )}
+
+            {/* Quantité + type + prix */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+                <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  {(['C', 'U'] as const).map(t => (
+                    <button key={t} onClick={() => setAjoutTypeUnite(t)}
+                      className={`flex-1 py-2 text-xs font-bold transition-colors ${ajoutTypeUnite === t ? 'bg-indigo-600 text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                      {t === 'C' ? 'Ctn' : 'Unité'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Quantité</label>
+                <input type="number" min={0} value={ajoutQte} onChange={e => setAjoutQte(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-center" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Prix/{ajoutTypeUnite === 'C' ? 'ctn' : 'u'}</label>
+                <input type="number" min={0} value={ajoutPrix} onChange={e => setAjoutPrix(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-right" />
+              </div>
+            </div>
+
+            {ajoutQte > 0 && ajoutPrix > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl px-4 py-2.5 text-center mb-4">
+                <span className="text-xs text-gray-400">Total </span>
+                <span className="font-bold text-green-600">{formatMontant(ajoutQte * ajoutPrix)}</span>
+              </div>
+            )}
+
+            {erreurAjout && (
+              <p className="text-xs text-red-500 mb-3">{erreurAjout}</p>
+            )}
+
+            <div className="flex gap-3">
+              <button onClick={() => setShowModalAjoutFiche(false)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
+                Annuler
+              </button>
+              <button onClick={validerAjoutFiche} disabled={savingAjout}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white transition-colors">
+                {savingAjout ? 'Ajout...' : 'Ajouter'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal confirmation importation */}
       {showModalConfirm && (() => {
