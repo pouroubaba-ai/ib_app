@@ -96,6 +96,13 @@ export default function ImportationPage() {
   const [erreurEdit, setErreurEdit] = useState('');
   const [showModalConfirm, setShowModalConfirm] = useState(false);
   const [savingConfirm, setSavingConfirm] = useState(false);
+  const [filtreEcart, setFiltreEcart] = useState<'tout' | 'avec_ecart' | 'sans_ecart'>('tout');
+
+  const lignesFicheFiltrees = useMemo(() => {
+    if (filtreEcart === 'avec_ecart') return lignesFiche.filter(l => l.depotTraite && l.quantiteDepot !== l.quantite);
+    if (filtreEcart === 'sans_ecart') return lignesFiche.filter(l => !l.depotTraite || l.quantiteDepot === l.quantite);
+    return lignesFiche;
+  }, [lignesFiche, filtreEcart]);
 
   /* ══════════ LOAD LISTE ══════════ */
   async function chargerImportations() {
@@ -746,24 +753,44 @@ export default function ImportationPage() {
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-5">
-          {[
-            { label: 'Produits', value: importationSelectee.nombreDeProduit ?? lignesFiche.length, color: 'text-gray-900 dark:text-gray-100' },
-            { label: 'Modifiés', value: importationSelectee.nombreDeProduitModifie ?? 0, color: 'text-orange-500' },
-            { label: 'Valeur totale', value: formatMontant(importationSelectee.valeurTotale ?? lignesFiche.reduce((s, l) => s + (l.totalLigne || 0), 0)), color: 'text-green-600' },
-          ].map(s => (
-            <div key={s.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 p-4 text-center shadow-sm">
-              <p className="text-xs text-gray-400 mb-1">{s.label}</p>
-              <p className={`font-bold text-lg ${s.color}`}>{s.value}</p>
+        {(() => {
+          const filtre = filtreEcart !== 'tout';
+          return (
+            <div className="grid grid-cols-3 gap-3 mb-5">
+              {[
+                { label: filtre ? 'Produits filtrés' : 'Produits', value: filtre ? `${lignesFicheFiltrees.length}/${lignesFiche.length}` : (importationSelectee.nombreDeProduit ?? lignesFiche.length), color: 'text-gray-900 dark:text-gray-100' },
+                { label: 'Modifiés', value: filtre ? lignesFicheFiltrees.filter(l => importationSelectee.produitsModifies?.includes(l.produitNom)).length : (importationSelectee.nombreDeProduitModifie ?? 0), color: 'text-orange-500' },
+                { label: 'Valeur totale', value: formatMontant(lignesFicheFiltrees.reduce((s, l) => s + (l.totalLigne || 0), 0)), color: 'text-green-600' },
+              ].map(s => (
+                <div key={s.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 p-4 text-center shadow-sm">
+                  <p className="text-xs text-gray-400 mb-1">{s.label}</p>
+                  <p className={`font-bold text-lg ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          );
+        })()}
 
         {loadingFiche ? (
           <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>
         ) : tabFiche === 'produits' ? (
           /* - ONGLET PRODUITS - */
           <>
+          {/* Filtre écart */}
+          <div className="flex gap-2 mb-3">
+            {(['tout', 'avec_ecart', 'sans_ecart'] as const).map(f => (
+              <button key={f} onClick={() => setFiltreEcart(f)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border
+                  ${filtreEcart === f
+                    ? f === 'avec_ecart' ? 'bg-red-500 text-white border-red-500'
+                      : f === 'sans_ecart' ? 'bg-green-600 text-white border-green-600'
+                      : 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                  }`}>
+                {f === 'tout' ? 'Tout' : f === 'avec_ecart' ? 'Avec écart' : 'Sans écart'}
+              </button>
+            ))}
+          </div>
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -781,7 +808,7 @@ export default function ImportationPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {lignesFiche.map((l, i) => {
+                  {lignesFicheFiltrees.map((l, i) => {
                     const isEditing = editKey === l.mouvId;
                     const unit = l.typeUnite === 'C' ? 'ctn' : 'u';
                     const modsL = modsParProduit[l.produitNom] || [];
@@ -910,7 +937,7 @@ export default function ImportationPage() {
                   <tr>
                     <td colSpan={7} className="px-4 py-3 font-bold text-gray-900 dark:text-gray-100">Total général</td>
                     <td className="px-3 py-3 text-right font-bold text-lg text-green-600">
-                      {formatMontant(lignesFiche.reduce((s, l) => s + l.totalLigne, 0))}
+                      {formatMontant(lignesFicheFiltrees.reduce((s, l) => s + l.totalLigne, 0))}
                     </td>
                     <td />
                   </tr>
