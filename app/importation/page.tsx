@@ -858,12 +858,12 @@ export default function ImportationPage() {
       <main className="max-w-5xl mx-auto px-4 py-6">
         {/* Stats */}
         {(() => {
-          const filtre = filtreEcart !== 'tout';
+          const filtre = filtreEcart !== 'tout' || rechercheFiche.trim() !== '';
           return (
             <div className="grid grid-cols-3 gap-3 mb-5">
               {[
-                { label: filtre ? 'Produits filtrés' : 'Produits', value: filtre ? `${lignesFicheFiltrees.length}/${lignesFiche.length}` : (importationSelectee.nombreDeProduit ?? lignesFiche.length), color: 'text-gray-900 dark:text-gray-100' },
-                { label: 'Modifiés', value: filtre ? lignesFicheFiltrees.filter(l => importationSelectee.produitsModifies?.includes(l.produitNom)).length : (importationSelectee.nombreDeProduitModifie ?? 0), color: 'text-orange-500' },
+                { label: filtre ? 'Filtrés' : 'Produits', value: filtre ? `${lignesFicheFiltrees.length}/${lignesFiche.length}` : (importationSelectee.nombreDeProduit ?? lignesFiche.length), color: 'text-gray-900 dark:text-gray-100' },
+                { label: 'Modifiés', value: lignesFicheFiltrees.filter(l => importationSelectee.produitsModifies?.includes(l.produitNom)).length, color: 'text-orange-500' },
                 { label: 'Valeur totale', value: formatMontant(lignesFicheFiltrees.reduce((s, l) => s + (l.totalLigne || 0), 0)), color: 'text-green-600' },
               ].map(s => (
                 <div key={s.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 p-4 text-center shadow-sm">
@@ -880,18 +880,36 @@ export default function ImportationPage() {
         ) : tabFiche === 'produits' ? (
           /* - ONGLET PRODUITS - */
           <>
-          {/* Recherche produit */}
-          <div className="relative mb-3">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={rechercheFiche} onChange={e => setRechercheFiche(e.target.value)}
-              placeholder="Rechercher un produit..."
-              className="w-full pl-9 pr-8 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
-            {rechercheFiche && (
-              <button onClick={() => setRechercheFiche('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <X size={14} />
-              </button>
-            )}
-          </div>
+          {/* Recherche produit avec dropdown */}
+          {(() => {
+            const suggestions = rechercheFiche.trim()
+              ? lignesFiche.filter(l => l.produitNom.toLowerCase().includes(rechercheFiche.toLowerCase()))
+              : [];
+            return (
+              <div className="relative mb-3">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <input value={rechercheFiche} onChange={e => setRechercheFiche(e.target.value)}
+                  placeholder="Rechercher un produit..."
+                  className="w-full pl-9 pr-8 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                {rechercheFiche && (
+                  <button onClick={() => setRechercheFiche('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X size={14} />
+                  </button>
+                )}
+                {suggestions.length > 0 && (
+                  <div className="absolute z-30 top-full mt-1 left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
+                    {suggestions.map(l => (
+                      <button key={l.mouvId} onClick={() => setRechercheFiche(l.produitNom)}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-gray-800 dark:text-gray-200 flex items-center justify-between gap-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                        <span className="truncate">{l.produitNom}</span>
+                        <span className="text-xs text-gray-400 shrink-0">{formatMontant(l.totalLigne)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Filtre écart */}
           <div className="flex gap-2 mb-3">
