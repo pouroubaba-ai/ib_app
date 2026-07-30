@@ -76,7 +76,8 @@ export default function HistoriqueSortiesPage() {
 
   const totalFiltre = filtered.reduce((s, m) => s + (m.totalLigne || 0), 0);
   const totalGeneral = mouvements.reduce((s, m) => s + (m.totalLigne || 0), 0);
-  const qteFiltre = filtered.reduce((s, m) => s + (m.quantite || 0), 0);
+  const qteFiltreC = filtered.filter(m => m.typeUnite === 'C').reduce((s, m) => s + (m.quantite || 0), 0);
+  const qteFiltreU = filtered.filter(m => m.typeUnite !== 'C').reduce((s, m) => s + (m.quantite || 0), 0);
   const filtrePanelActif = !!filtrePersonne;
   const filtreActif = !!(rechercheProduit || filtrePersonne);
 
@@ -260,7 +261,10 @@ export default function HistoriqueSortiesPage() {
                     <tfoot className="bg-gray-50 border-t border-gray-200">
                       <tr>
                         <td colSpan={2} className="px-4 py-3 font-bold text-gray-700">Sous-total</td>
-                        <td className="px-4 py-3 text-right font-bold text-gray-800">{qteFiltre.toLocaleString('fr-FR')} <span className="text-xs font-normal text-gray-400">unités</span></td>
+                        <td className="px-4 py-3 text-right font-bold text-gray-800 space-x-2">
+                          {qteFiltreC > 0 && <span>{qteFiltreC.toLocaleString('fr-FR')} <span className="text-xs font-normal text-gray-400">ctn</span></span>}
+                          {qteFiltreU > 0 && <span>{qteFiltreU.toLocaleString('fr-FR')} <span className="text-xs font-normal text-gray-400">u</span></span>}
+                        </td>
                         <td />
                         <td className="px-4 py-3 text-right font-bold text-blue-600">{formatMontant(totalFiltre)}</td>
                         <td />
