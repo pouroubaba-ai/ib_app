@@ -208,7 +208,7 @@ export default function HistoriqueEntreesPage() {
                     <span className="font-bold text-green-600 shrink-0 ml-2">{formatMontant(m.totalLigne)}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs text-gray-400">
-                    <span>{m.nomClient || '—'} · {m.quantite?.toLocaleString('fr-FR')} {m.typeUnite}</span>
+                    <span>{m.nomClient || '—'} · {m.quantite?.toLocaleString('fr-FR')} {m.typeUnite === 'C' ? 'ctn' : 'u'}</span>
                     <span>{formatDate(m.date)}</span>
                   </div>
                 </div>
@@ -247,7 +247,7 @@ export default function HistoriqueEntreesPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-gray-600">{m.nomClient || '—'}</td>
-                        <td className="px-4 py-3 text-right text-gray-900">{m.quantite?.toLocaleString('fr-FR')} <span className="text-xs text-gray-400">{m.typeUnite}</span></td>
+                        <td className="px-4 py-3 text-right text-gray-900">{m.quantite?.toLocaleString('fr-FR')} <span className="text-xs text-gray-400">{m.typeUnite === 'C' ? 'ctn' : 'u'}</span></td>
                         <td className="px-4 py-3 text-right text-gray-600">
                           {m.quantite ? Math.round(m.totalLigne / m.quantite).toLocaleString('fr-FR') : '—'}
                           <span className="text-xs text-gray-400 ml-1">/{m.typeUnite === 'C' ? 'ctn' : 'u'}</span>
@@ -258,12 +258,12 @@ export default function HistoriqueEntreesPage() {
                     ))}
                   </tbody>
                   {filtered.length > 0 && (
-                    <tfoot className="bg-gray-50 border-t border-gray-200">
+                    <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                       <tr>
-                        <td colSpan={2} className="px-4 py-3 font-bold text-gray-700">Sous-total</td>
-                        <td className="px-4 py-3 text-right font-bold text-gray-800 space-x-2">
-                          {qteFiltreC > 0 && <span>{qteFiltreC.toLocaleString('fr-FR')} <span className="text-xs font-normal text-gray-400">ctn</span></span>}
-                          {qteFiltreU > 0 && <span>{qteFiltreU.toLocaleString('fr-FR')} <span className="text-xs font-normal text-gray-400">u</span></span>}
+                        <td colSpan={2} className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">Sous-total</td>
+                        <td className="px-4 py-3 text-right font-bold text-gray-800 dark:text-gray-100 space-x-2">
+                          {qteFiltreC > 0 && <span>{qteFiltreC.toLocaleString('fr-FR')} <span className="text-xs font-normal text-gray-400 dark:text-gray-500">ctn</span></span>}
+                          {qteFiltreU > 0 && <span>{qteFiltreU.toLocaleString('fr-FR')} <span className="text-xs font-normal text-gray-400 dark:text-gray-500">u</span></span>}
                         </td>
                         <td />
                         <td className="px-4 py-3 text-right font-bold text-green-600">{formatMontant(totalFiltre)}</td>
