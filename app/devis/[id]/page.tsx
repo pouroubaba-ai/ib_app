@@ -363,7 +363,7 @@ export default function FicheDevisPage() {
           date: serverTimestamp(),
         });
         // Mise à jour document_stock
-        batch.update(doc(db, 'documents_stock', devis.documentId), {
+        batch.update(doc(db, 'documents_stock', devis.documentId!), {
           nombreDeProduit: increment(1),
           totalGeneral: increment(total),
         });
