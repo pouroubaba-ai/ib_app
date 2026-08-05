@@ -10,8 +10,16 @@ import { useRouter, useParams } from 'next/navigation';
 import { formatMontant, formatDate } from '@/lib/format';
 import {
   ArrowLeft, Package, CheckCircle2, XCircle, Share2, Download,
-  Edit2, Check, X, AlertTriangle, FileText, ClipboardList,
+  Edit2, Check, X, AlertTriangle, FileText, ClipboardList, Plus, Search, Trash2,
 } from 'lucide-react';
+
+interface ProduitDB {
+  id: string;
+  designation: string;
+  prix_unitaire: number;
+  quantite_par_emballage: number;
+  quantite_unitaire_total: number;
+}
 
 type StatutDevis = 'brouillon' | 'envoye' | 'confirme' | 'annule';
 
@@ -37,6 +45,7 @@ interface DevisData {
   totalDepot: number;
   totalHorsDepot: number;
   adminUid: string;
+  documentId?: string;
 }
 
 interface BoutiqueInfo {
@@ -81,6 +90,21 @@ export default function FicheDevisPage() {
   // Edition des lignes
   const [editMode, setEditMode] = useState(false);
   const [lignesEdit, setLignesEdit] = useState<LigneDevis[]>([]);
+
+  // Ajout produit
+  const [showModalAjout, setShowModalAjout] = useState(false);
+  const [ajoutProduits, setAjoutProduits] = useState<ProduitDB[]>([]);
+  const [ajoutRecherche, setAjoutRecherche] = useState('');
+  const [ajoutSelectee, setAjoutSelectee] = useState<ProduitDB | null>(null);
+  const [ajoutHorsDepot, setAjoutHorsDepot] = useState(false);
+  const [ajoutNomHors, setAjoutNomHors] = useState('');
+  const [ajoutTypeUnite, setAjoutTypeUnite] = useState<'U' | 'C'>('C');
+  const [ajoutQte, setAjoutQte] = useState(0);
+  const [ajoutPrix, setAjoutPrix] = useState(0);
+  const [ajoutQpe, setAjoutQpe] = useState(1);
+  const [savingAjout, setSavingAjout] = useState(false);
+  const [erreurAjout, setErreurAjout] = useState('');
+  const [confirmSupprIdx, setConfirmSupprIdx] = useState<number | null>(null);
 
   useEffect(() => {
     if (!devisId) return;
@@ -184,47 +208,50 @@ export default function FicheDevisPage() {
       }
 
       const totalDepotReel = lignesEffectives.reduce((s, l) => s + l.qteReelle * l.prix, 0);
+      const aDesLignesDepot = lignesEffectives.length > 0;
 
-      batch.set(doc(db, 'documents_stock', docId), {
-        userId: adminUid,
-        typeDocument: 'Sortie',
-        numeroDocument: numeroDoc,
-        clientNom: devis.clientNom,
-        clientId: devis.clientId,
-        date: serverTimestamp(),
-        nombreDeProduit: lignesEffectives.length,
-        totalGeneral: totalDepotReel,
-        facturierTraites: [],
-        facturierNbTraite: 0,
-        facturierStatut: 'en_cours',
-        devisId: devisId,
-        devisNumero: devis.numeroDevis,
-      });
-
-      for (const l of lignesEffectives) {
-        const mouvId = doc(collection(db, 'mouvements')).id;
-        batch.set(doc(db, 'mouvements', mouvId), {
+      if (aDesLignesDepot) {
+        batch.set(doc(db, 'documents_stock', docId), {
           userId: adminUid,
-          documentId: doc(db, 'documents_stock', docId),
-          typeTransaction: 'Sortie',
-          produitId: l.produitId,
-          produitNom: l.produitNom,
-          quantite: l.qteReelle,
-          typeUnite: l.typeUnite,
-          quantiteUnites: l.qteUnitsReelle,
-          prixUnitaire: l.prix,
-          totalLigne: l.qteReelle * l.prix,
+          typeDocument: 'Sortie',
+          numeroDocument: numeroDoc,
+          clientNom: devis.clientNom,
+          clientId: devis.clientId,
           date: serverTimestamp(),
+          nombreDeProduit: lignesEffectives.length,
+          totalGeneral: totalDepotReel,
+          facturierTraites: [],
+          facturierNbTraite: 0,
+          facturierStatut: 'en_cours',
+          devisId: devisId,
+          devisNumero: devis.numeroDevis,
         });
-        batch.update(doc(db, 'Produits', l.produitId!), {
-          quantite_unitaire_total: increment(-l.qteUnitsReelle),
-        });
+
+        for (const l of lignesEffectives) {
+          const mouvId = doc(collection(db, 'mouvements')).id;
+          batch.set(doc(db, 'mouvements', mouvId), {
+            userId: adminUid,
+            documentId: doc(db, 'documents_stock', docId),
+            typeTransaction: 'Sortie',
+            produitId: l.produitId,
+            produitNom: l.produitNom,
+            quantite: l.qteReelle,
+            typeUnite: l.typeUnite,
+            quantiteUnites: l.qteUnitsReelle,
+            prixUnitaire: l.prix,
+            totalLigne: l.qteReelle * l.prix,
+            date: serverTimestamp(),
+          });
+          batch.update(doc(db, 'Produits', l.produitId!), {
+            quantite_unitaire_total: increment(-l.qteUnitsReelle),
+          });
+        }
       }
 
       batch.update(doc(db, 'devis', devisId), {
         statut: 'confirme',
         confirmedAt: serverTimestamp(),
-        documentId: docId,
+        documentId: aDesLignesDepot ? docId : null,
       });
 
       await batch.commit();
@@ -251,6 +278,122 @@ export default function FicheDevisPage() {
       console.error(e);
     } finally {
       setEnCours(false);
+    }
+  }
+
+  async function confirmerSuppression() {
+    if (!devis || confirmSupprIdx === null) return;
+    const nouvellesLignes = devis.lignes.filter((_, i) => i !== confirmSupprIdx);
+    const totalGeneral = nouvellesLignes.reduce((s, l) => s + l.quantite * l.prix, 0);
+    const totalDepot = nouvellesLignes.filter(l => !l.horsDepot).reduce((s, l) => s + l.quantite * l.prix, 0);
+    const totalHorsDepot = nouvellesLignes.filter(l => l.horsDepot).reduce((s, l) => s + l.quantite * l.prix, 0);
+    await updateDoc(doc(db, 'devis', devisId), {
+      lignes: nouvellesLignes, totalGeneral, totalDepot, totalHorsDepot,
+      nbLignes: nouvellesLignes.length,
+      nbLignesHorsDepot: nouvellesLignes.filter(l => l.horsDepot).length,
+    });
+    setDevis(prev => prev ? { ...prev, lignes: nouvellesLignes, totalGeneral, totalDepot, totalHorsDepot } : prev);
+    setLignesEdit(nouvellesLignes);
+    setConfirmSupprIdx(null);
+  }
+
+  function demanderSuppression(index: number) {
+    if (!devis) return;
+    const ligne = devis.lignes[index];
+    if (devis.statut === 'confirme' && !ligne.horsDepot && ligne.produitId) {
+      setConfirmSupprIdx(-1); // signal "bloqué"
+    } else {
+      setConfirmSupprIdx(index);
+    }
+  }
+
+  async function ouvrirModalAjout() {
+    if (!adminUid) return;
+    const snap = await getDocs(query(collection(db, 'Produits'), where('userId', '==', adminUid)));
+    setAjoutProduits(snap.docs.map(d => ({ id: d.id, ...d.data() } as ProduitDB)));
+    setAjoutRecherche(''); setAjoutSelectee(null);
+    setAjoutHorsDepot(false); setAjoutNomHors('');
+    setAjoutTypeUnite('C'); setAjoutQte(0); setAjoutPrix(0); setAjoutQpe(1);
+    setErreurAjout('');
+    setShowModalAjout(true);
+  }
+
+  async function validerAjout() {
+    if (!devis || !adminUid) return;
+    if (ajoutQte <= 0) { setErreurAjout('Quantité requise.'); return; }
+    if (ajoutHorsDepot && !ajoutNomHors.trim()) { setErreurAjout('Nom du produit requis.'); return; }
+    if (!ajoutHorsDepot && !ajoutSelectee) { setErreurAjout('Sélectionnez un produit.'); return; }
+
+    setSavingAjout(true); setErreurAjout('');
+    try {
+      const nouvelleLigne: LigneDevis = {
+        produitId: ajoutHorsDepot ? null : ajoutSelectee!.id,
+        produitNom: ajoutHorsDepot ? ajoutNomHors.trim() : ajoutSelectee!.designation,
+        typeUnite: ajoutTypeUnite,
+        quantite: ajoutQte,
+        prix: ajoutPrix,
+        qpe: ajoutQpe,
+        horsDepot: ajoutHorsDepot,
+      };
+      const nouvellesLignes = [...devis.lignes, nouvelleLigne];
+      const totalGeneral = nouvellesLignes.reduce((s, l) => s + l.quantite * l.prix, 0);
+      const totalDepot = nouvellesLignes.filter(l => !l.horsDepot).reduce((s, l) => s + l.quantite * l.prix, 0);
+      const totalHorsDepot = nouvellesLignes.filter(l => l.horsDepot).reduce((s, l) => s + l.quantite * l.prix, 0);
+
+      if (devis.statut === 'confirme' && !ajoutHorsDepot && ajoutSelectee) {
+        // Produit stock sur devis confirmé → sortie atomique
+        const batch = writeBatch(db);
+        const prixParUnit = ajoutTypeUnite === 'C' ? ajoutPrix / ajoutQpe : ajoutPrix;
+        const qteUnits = ajoutTypeUnite === 'C' ? ajoutQte * ajoutQpe : ajoutQte;
+        const total = ajoutQte * ajoutPrix;
+
+        // Mouvement de sortie
+        const mouvRef = doc(collection(db, 'mouvements'));
+        batch.set(mouvRef, {
+          userId: adminUid,
+          documentId: doc(db, 'documents_stock', devis.documentId),
+          typeTransaction: 'Sortie',
+          produitId: ajoutSelectee.id,
+          produitNom: ajoutSelectee.designation,
+          quantite: ajoutQte,
+          typeUnite: ajoutTypeUnite,
+          quantiteUnites: qteUnits,
+          prixUnitaire: prixParUnit,
+          totalLigne: total,
+          date: serverTimestamp(),
+        });
+        // Mise à jour document_stock
+        batch.update(doc(db, 'documents_stock', devis.documentId), {
+          nombreDeProduit: increment(1),
+          totalGeneral: increment(total),
+        });
+        // Décrémentation stock
+        batch.update(doc(db, 'Produits', ajoutSelectee.id), {
+          quantite_unitaire_total: increment(-qteUnits),
+        });
+        // Mise à jour devis
+        batch.update(doc(db, 'devis', devisId), {
+          lignes: nouvellesLignes, totalGeneral, totalDepot, totalHorsDepot,
+          nbLignes: nouvellesLignes.length,
+          nbLignesHorsDepot: nouvellesLignes.filter(l => l.horsDepot).length,
+        });
+        await batch.commit();
+      } else {
+        // Brouillon/envoyé ou produit hors-stock sur confirmé → simple mise à jour devis
+        await updateDoc(doc(db, 'devis', devisId), {
+          lignes: nouvellesLignes, totalGeneral, totalDepot, totalHorsDepot,
+          nbLignes: nouvellesLignes.length,
+          nbLignesHorsDepot: nouvellesLignes.filter(l => l.horsDepot).length,
+        });
+      }
+
+      setDevis(prev => prev ? { ...prev, lignes: nouvellesLignes, totalGeneral, totalDepot, totalHorsDepot } : prev);
+      setLignesEdit(nouvellesLignes);
+      setShowModalAjout(false);
+    } catch (e) {
+      console.error(e); setErreurAjout('Erreur lors de l\'ajout.');
+    } finally {
+      setSavingAjout(false);
     }
   }
 
@@ -514,14 +657,20 @@ export default function FicheDevisPage() {
             </div>
             <p className="text-xs font-mono text-gray-400 mt-0.5">{devis.numeroDevis} · {formatDate(devis.date)}</p>
           </div>
-          {peutModifier && !editMode && (
-            <button
-              onClick={() => setEditMode(true)}
-              className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              <Edit2 size={16} className="text-gray-500" />
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {devis.statut !== 'annule' && !editMode && (
+              <button onClick={ouvrirModalAjout}
+                className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <Plus size={16} className="text-indigo-500" />
+              </button>
+            )}
+            {peutModifier && !editMode && (
+              <button onClick={() => setEditMode(true)}
+                className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <Edit2 size={16} className="text-gray-500" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Produits dépôt */}
@@ -531,36 +680,44 @@ export default function FicheDevisPage() {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Produits dépôt</p>
             </div>
             <div className="divide-y divide-gray-50 dark:divide-gray-800">
-              {(editMode ? lignesEdit.filter(l => !l.horsDepot) : lignesDepot).map((l, i) => (
+              {(editMode ? lignesEdit.filter(l => !l.horsDepot) : lignesDepot).map((l, i) => {
+                const globalIdx = devis.lignes.indexOf(l);
+                const peutSupprimer = devis.statut !== 'annule';
+                const stockConfirme = devis.statut === 'confirme' && !l.horsDepot && !!l.produitId;
+                return (
                 <div key={i} className="px-4 py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{l.produitNom}</p>
                     {editMode ? (
                       <div className="flex gap-2 mt-1.5">
-                        <select
-                          value={l.typeUnite}
+                        <select value={l.typeUnite}
                           onChange={e => mettreAJourLigne(devis.lignes.findIndex((ll, ii) => !ll.horsDepot && ii === i), 'typeUnite', e.target.value)}
-                          className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-800"
-                        >
+                          className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-800">
                           <option value="U">Unité</option>
                           <option value="C">Carton</option>
                         </select>
                         <input type="number" min={1} value={l.quantite}
                           onChange={e => mettreAJourLigne(devis.lignes.findIndex((ll, ii) => !ll.horsDepot && ii === i), 'quantite', Number(e.target.value))}
-                          className="w-16 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-800"
-                        />
+                          className="w-16 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-800" />
                         <input type="number" min={0} value={l.prix}
                           onChange={e => mettreAJourLigne(devis.lignes.findIndex((ll, ii) => !ll.horsDepot && ii === i), 'prix', Number(e.target.value))}
-                          className="w-24 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-800"
-                        />
+                          className="w-24 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-800" />
                       </div>
                     ) : (
                       <p className="text-xs text-gray-400 mt-0.5">{l.quantite} {l.typeUnite === 'C' ? 'carton(s)' : 'unité(s)'} × {l.prix.toLocaleString('fr-FR')} FCFA</p>
                     )}
                   </div>
                   <p className="text-sm font-bold text-indigo-600 shrink-0">{formatMontant(l.quantite * l.prix)}</p>
+                  {peutSupprimer && !editMode && (
+                    <button onClick={() => demanderSuppression(globalIdx)}
+                      title={stockConfirme ? 'Passer par un retour' : 'Supprimer'}
+                      className={`p-1.5 rounded-lg transition-colors shrink-0 ${stockConfirme ? 'text-gray-300 dark:text-gray-700 cursor-not-allowed' : 'text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'}`}>
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -573,7 +730,9 @@ export default function FicheDevisPage() {
               <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">Hors dépôt — à préparer</p>
             </div>
             <div className="divide-y divide-amber-100 dark:divide-amber-800">
-              {(editMode ? lignesEdit.filter(l => l.horsDepot) : lignesHors).map((l, i) => (
+              {(editMode ? lignesEdit.filter(l => l.horsDepot) : lignesHors).map((l, i) => {
+                const globalIdx = devis.lignes.indexOf(l);
+                return (
                 <div key={i} className="px-4 py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{l.produitNom}</p>
@@ -581,20 +740,25 @@ export default function FicheDevisPage() {
                       <div className="flex gap-2 mt-1.5">
                         <input type="number" min={1} value={l.quantite}
                           onChange={e => mettreAJourLigne(devis.lignes.findIndex((ll, ii) => ll.horsDepot && ii === i), 'quantite', Number(e.target.value))}
-                          className="w-16 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-800"
-                        />
+                          className="w-16 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-800" />
                         <input type="number" min={0} value={l.prix}
                           onChange={e => mettreAJourLigne(devis.lignes.findIndex((ll, ii) => ll.horsDepot && ii === i), 'prix', Number(e.target.value))}
-                          className="w-24 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-800"
-                        />
+                          className="w-24 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-800" />
                       </div>
                     ) : (
                       <p className="text-xs text-amber-600/70 mt-0.5">{l.quantite} unité(s) × {l.prix.toLocaleString('fr-FR')} FCFA</p>
                     )}
                   </div>
                   <p className="text-sm font-bold text-amber-600 shrink-0">{formatMontant(l.quantite * l.prix)}</p>
+                  {devis.statut !== 'annule' && !editMode && (
+                    <button onClick={() => demanderSuppression(globalIdx)}
+                      className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -709,6 +873,157 @@ export default function FicheDevisPage() {
           </div>
         )}
       </div>
+
+      {/* Modal confirmation suppression */}
+      {confirmSupprIdx !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setConfirmSupprIdx(null)} />
+          <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-80 mx-4">
+            {confirmSupprIdx === -1 ? (
+              /* Produit stock confirmé — bloqué */
+              <>
+                <div className="flex flex-col items-center gap-3 mb-5">
+                  <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                    <AlertTriangle size={22} className="text-amber-500" />
+                  </div>
+                  <p className="text-base font-bold text-gray-900 dark:text-gray-100 text-center">Suppression impossible</p>
+                  <p className="text-sm text-gray-400 text-center">Ce produit a déjà été sorti du stock lors de la confirmation. Pour le retirer, effectuez un retour depuis la gestion des sorties.</p>
+                </div>
+                <button onClick={() => setConfirmSupprIdx(null)}
+                  className="w-full py-2.5 rounded-xl text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                  Compris
+                </button>
+              </>
+            ) : (
+              /* Confirmation normale */
+              <>
+                <div className="flex flex-col items-center gap-3 mb-5">
+                  <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                    <Trash2 size={22} className="text-red-500" />
+                  </div>
+                  <p className="text-base font-bold text-gray-900 dark:text-gray-100 text-center">Supprimer ce produit ?</p>
+                  <p className="text-sm text-gray-400 text-center font-medium">{devis.lignes[confirmSupprIdx]?.produitNom}</p>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setConfirmSupprIdx(null)}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
+                    Annuler
+                  </button>
+                  <button onClick={confirmerSuppression}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-500 hover:bg-red-600 text-white transition-colors">
+                    Supprimer
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal ajout produit */}
+      {showModalAjout && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowModalAjout(false)} />
+          <div className="relative bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <p className="font-bold text-gray-900 dark:text-gray-100 mb-1">Ajouter un produit</p>
+            {devis.statut === 'confirme' && !ajoutHorsDepot && (
+              <p className="text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-lg mb-3">Produit stock : sortie créée immédiatement</p>
+            )}
+
+            {/* Toggle dépôt / hors-dépôt */}
+            <div className="flex rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-4">
+              <button onClick={() => { setAjoutHorsDepot(false); setAjoutSelectee(null); setAjoutRecherche(''); }}
+                className={`flex-1 py-2 text-xs font-semibold transition-colors ${!ajoutHorsDepot ? 'bg-indigo-600 text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                Produit dépôt
+              </button>
+              <button onClick={() => { setAjoutHorsDepot(true); setAjoutSelectee(null); }}
+                className={`flex-1 py-2 text-xs font-semibold transition-colors ${ajoutHorsDepot ? 'bg-amber-500 text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                Hors dépôt
+              </button>
+            </div>
+
+            {!ajoutHorsDepot ? (
+              <div className="mb-4">
+                <div className="relative mb-2">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input value={ajoutRecherche} onChange={e => { setAjoutRecherche(e.target.value); setAjoutSelectee(null); }}
+                    placeholder="Rechercher un produit stock..."
+                    className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                </div>
+                <div className="max-h-40 overflow-y-auto space-y-1">
+                  {ajoutProduits
+                    .filter(p => p.designation.toLowerCase().includes(ajoutRecherche.toLowerCase()))
+                    .slice(0, 8)
+                    .map(p => (
+                      <button key={p.id} onClick={() => {
+                        setAjoutSelectee(p);
+                        setAjoutQpe(p.quantite_par_emballage || 1);
+                        setAjoutPrix(Math.round((p.prix_unitaire || 0) * (p.quantite_par_emballage || 1)));
+                        setAjoutRecherche(p.designation);
+                      }}
+                        className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex items-center justify-between gap-2
+                          ${ajoutSelectee?.id === p.id ? 'bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>
+                        <span className="truncate">{p.designation}</span>
+                        <span className="text-xs text-gray-400 shrink-0">{p.quantite_unitaire_total} u</span>
+                      </button>
+                    ))}
+                </div>
+              </div>
+            ) : (
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Nom du produit</label>
+                <input value={ajoutNomHors} onChange={e => setAjoutNomHors(e.target.value)}
+                  placeholder="Désignation hors dépôt..."
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+                <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  {(['C', 'U'] as const).map(t => (
+                    <button key={t} onClick={() => setAjoutTypeUnite(t)}
+                      className={`flex-1 py-2 text-xs font-bold transition-colors ${ajoutTypeUnite === t ? 'bg-indigo-600 text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                      {t === 'C' ? 'Ctn' : 'Unité'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Quantité</label>
+                <input type="number" min={1} value={ajoutQte || ''} onChange={e => setAjoutQte(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-center" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Prix/{ajoutTypeUnite === 'C' ? 'ctn' : 'u'}</label>
+                <input type="number" min={0} value={ajoutPrix || ''} onChange={e => setAjoutPrix(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-right" />
+              </div>
+            </div>
+
+            {ajoutQte > 0 && ajoutPrix > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl px-4 py-2.5 text-center mb-4">
+                <span className="text-xs text-gray-400">Total </span>
+                <span className="font-bold text-green-600">{(ajoutQte * ajoutPrix).toLocaleString('fr-FR')} FCFA</span>
+              </div>
+            )}
+
+            {erreurAjout && <p className="text-xs text-red-500 mb-3">{erreurAjout}</p>}
+
+            <div className="flex gap-3">
+              <button onClick={() => setShowModalAjout(false)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400">
+                Annuler
+              </button>
+              <button onClick={validerAjout} disabled={savingAjout}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white transition-colors">
+                {savingAjout ? 'Ajout...' : 'Ajouter'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal confirmation */}
       {modal && (
