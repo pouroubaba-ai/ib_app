@@ -351,7 +351,7 @@ export default function FicheDevisPage() {
         const mouvRef = doc(collection(db, 'mouvements'));
         batch.set(mouvRef, {
           userId: adminUid,
-          documentId: doc(db, 'documents_stock', devis.documentId),
+          documentId: doc(db, 'documents_stock', devis.documentId!),
           typeTransaction: 'Sortie',
           produitId: ajoutSelectee.id,
           produitNom: ajoutSelectee.designation,
