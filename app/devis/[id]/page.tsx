@@ -232,6 +232,7 @@ export default function FicheDevisPage() {
           batch.set(doc(db, 'mouvements', mouvId), {
             userId: adminUid,
             documentId: doc(db, 'documents_stock', docId),
+            typeDocument: 'Sortie',
             typeTransaction: 'Sortie',
             produitId: l.produitId,
             produitNom: l.produitNom,
@@ -352,6 +353,7 @@ export default function FicheDevisPage() {
         batch.set(mouvRef, {
           userId: adminUid,
           documentId: doc(db, 'documents_stock', devis.documentId!),
+          typeDocument: 'Sortie',
           typeTransaction: 'Sortie',
           produitId: ajoutSelectee.id,
           produitNom: ajoutSelectee.designation,
