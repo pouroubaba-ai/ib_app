@@ -67,17 +67,39 @@ export default function FiltreDates({ onChange, defaut = 'annee' }: Props) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {raccourcis.map(r => (
-        <button
-          key={r.key}
-          onClick={() => select(r.key)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
-            ${actif === r.key ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-        >
-          {r.key === 'custom' && <Calendar size={13} />}
-          {r.label}
-        </button>
-      ))}
+      {/* Dropdown mobile */}
+      <div className="sm:hidden flex items-center gap-2 w-full">
+        <div className="relative flex-1">
+          <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <select
+            value={actif}
+            onChange={e => select(e.target.value as Raccourci)}
+            className="w-full appearance-none pl-8 pr-8 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+          >
+            {raccourcis.map(r => (
+              <option key={r.key} value={r.key}>{r.label}</option>
+            ))}
+          </select>
+          <svg className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      {/* Boutons desktop */}
+      <div className="hidden sm:flex flex-wrap items-center gap-2">
+        {raccourcis.map(r => (
+          <button
+            key={r.key}
+            onClick={() => select(r.key)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+              ${actif === r.key ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+          >
+            {r.key === 'custom' && <Calendar size={13} />}
+            {r.label}
+          </button>
+        ))}
+      </div>
 
       {showCustom && (
         <div className="flex flex-wrap items-center gap-2 mt-2 w-full sm:w-auto sm:mt-0">
@@ -85,14 +107,14 @@ export default function FiltreDates({ onChange, defaut = 'annee' }: Props) {
             type="date"
             value={debutStr}
             onChange={e => setDebutStr(e.target.value)}
-            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
           />
           <span className="text-gray-400 text-sm">→</span>
           <input
             type="date"
             value={finStr}
             onChange={e => setFinStr(e.target.value)}
-            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
           />
           <button
             onClick={applyCustom}
