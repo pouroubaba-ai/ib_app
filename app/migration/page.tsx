@@ -105,7 +105,7 @@ export default function MigrationPage() {
               continue;
             }
 
-            const clientNom: string = docSnap.data().clientNom || '';
+            const clientNom: string = (docSnap.data() as any).clientNom || '';
             if (!clientNom) {
               log('skip', `⚠ ${d.id.slice(0, 8)}… : clientNom vide dans le document, ignoré`);
               erreurs++;
