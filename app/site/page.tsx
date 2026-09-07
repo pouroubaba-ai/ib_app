@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   collection, query, where, getDocs, addDoc, serverTimestamp,
 } from 'firebase/firestore';
@@ -8,11 +8,15 @@ import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth-context';
 import AppLayout from '@/components/AppLayout';
 import { formatMontant } from '@/lib/format';
-import { Plus, MapPin, Users, BadgeCheck, ImagePlus, Loader2, Store, Warehouse } from 'lucide-react';
+import {
+  Plus, MapPin, Users, BadgeCheck, ImagePlus, Loader2,
+  Store, Warehouse, Search, SlidersHorizontal, ArrowUpDown, X,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 type TypeSite = 'boutique' | 'depot';
 type EtatSite = 'actif' | 'inactif';
+type Tri = 'employes_desc' | 'employes_asc' | 'remuneration_desc' | 'remuneration_asc';
 
 interface Site {
   id: string;
@@ -30,6 +34,14 @@ export default function SitePage() {
   const router = useRouter();
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
+
+  /* - Recherche / filtre / tri - */
+  const [search, setSearch] = useState('');
+  const [filtreType, setFiltreType] = useState<TypeSite | 'tout'>('tout');
+  const [filtreEtat, setFiltreEtat] = useState<EtatSite | 'tout'>('tout');
+  const [tri, setTri] = useState<Tri | ''>('');
+  const [showFiltre, setShowFiltre] = useState(false);
+  const [showTri, setShowTri] = useState(false);
 
   /* - Modal ajout - */
   const [showModal, setShowModal] = useState(false);
@@ -58,6 +70,23 @@ export default function SitePage() {
       setLoading(false);
     }
   }
+
+  const sitesFiltres = useMemo(() => {
+    let list = [...sites];
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(s => s.nom.toLowerCase().includes(q) || s.adresse.toLowerCase().includes(q));
+    }
+    if (filtreType !== 'tout') list = list.filter(s => s.type === filtreType);
+    if (filtreEtat !== 'tout') list = list.filter(s => s.etat === filtreEtat);
+    if (tri === 'employes_desc') list.sort((a, b) => b.nbEmployes - a.nbEmployes);
+    if (tri === 'employes_asc') list.sort((a, b) => a.nbEmployes - b.nbEmployes);
+    if (tri === 'remuneration_desc') list.sort((a, b) => b.remunerationMensuelle - a.remunerationMensuelle);
+    if (tri === 'remuneration_asc') list.sort((a, b) => a.remunerationMensuelle - b.remunerationMensuelle);
+    return list;
+  }, [sites, search, filtreType, filtreEtat, tri]);
+
+  const filtreActif = filtreType !== 'tout' || filtreEtat !== 'tout';
 
   function ouvrirModal() {
     setNom(''); setType('boutique'); setAdresse('');
@@ -103,14 +132,21 @@ export default function SitePage() {
     }
   }
 
+  const triLabels: Record<Tri, string> = {
+    employes_desc: 'Employés ↓',
+    employes_asc: 'Employés ↑',
+    remuneration_desc: 'Rémunération ↓',
+    remuneration_asc: 'Rémunération ↑',
+  };
+
   return (
     <AppLayout>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Sites</h1>
-            <p className="text-sm text-gray-400 mt-0.5">{sites.length} site{sites.length > 1 ? 's' : ''}</p>
+            <p className="text-sm text-gray-400 mt-0.5">{sitesFiltres.length} / {sites.length} site{sites.length > 1 ? 's' : ''}</p>
           </div>
           <button onClick={ouvrirModal}
             className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-colors">
@@ -118,20 +154,107 @@ export default function SitePage() {
           </button>
         </div>
 
+        {/* Barre recherche + filtre + tri */}
+        <div className="flex gap-2 mb-4 relative">
+          {/* Recherche */}
+          <div className="relative flex-1">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              type="text" placeholder="Rechercher un site…" value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* Filtre */}
+          <div className="relative">
+            <button onClick={() => { setShowFiltre(v => !v); setShowTri(false); }}
+              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors
+                ${filtreActif
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'}`}>
+              <SlidersHorizontal size={15} />
+              <span className="hidden sm:inline">Filtre</span>
+              {filtreActif && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+            </button>
+
+            {showFiltre && (
+              <div className="absolute right-0 top-12 z-20 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl p-4 w-56">
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Type</p>
+                {(['tout', 'boutique', 'depot'] as const).map(t => (
+                  <button key={t} onClick={() => setFiltreType(t)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm mb-1 transition-colors
+                      ${filtreType === t ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                    {t === 'tout' ? 'Tout' : t === 'boutique' ? 'Boutique' : 'Dépôt'}
+                  </button>
+                ))}
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2 mt-3">État</p>
+                {(['tout', 'actif', 'inactif'] as const).map(e => (
+                  <button key={e} onClick={() => setFiltreEtat(e)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm mb-1 transition-colors
+                      ${filtreEtat === e ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                    {e === 'tout' ? 'Tout' : e === 'actif' ? 'Actif' : 'Inactif'}
+                  </button>
+                ))}
+                {filtreActif && (
+                  <button onClick={() => { setFiltreType('tout'); setFiltreEtat('tout'); }}
+                    className="w-full mt-2 py-1.5 rounded-lg text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                    Réinitialiser
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Tri */}
+          <div className="relative">
+            <button onClick={() => { setShowTri(v => !v); setShowFiltre(false); }}
+              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors
+                ${tri
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'}`}>
+              <ArrowUpDown size={15} />
+              <span className="hidden sm:inline">Trier</span>
+            </button>
+
+            {showTri && (
+              <div className="absolute right-0 top-12 z-20 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl p-2 w-52">
+                {(Object.keys(triLabels) as Tri[]).map(t => (
+                  <button key={t} onClick={() => { setTri(tri === t ? '' : t); setShowTri(false); }}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors
+                      ${tri === t ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                    {triLabels[t]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Fermer dropdowns en cliquant ailleurs */}
+        {(showFiltre || showTri) && (
+          <div className="fixed inset-0 z-10" onClick={() => { setShowFiltre(false); setShowTri(false); }} />
+        )}
+
         {/* Liste */}
         {loading ? (
           <div className="flex justify-center py-20">
             <Loader2 size={28} className="animate-spin text-indigo-500" />
           </div>
-        ) : sites.length === 0 ? (
+        ) : sitesFiltres.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
             <MapPin size={40} className="mx-auto mb-3 opacity-30" />
-            <p className="font-medium">Aucun site créé</p>
-            <p className="text-sm mt-1">Cliquez sur "Nouveau site" pour commencer</p>
+            <p className="font-medium">{sites.length === 0 ? 'Aucun site créé' : 'Aucun résultat'}</p>
+            <p className="text-sm mt-1">{sites.length === 0 ? 'Cliquez sur "Nouveau site" pour commencer' : 'Modifiez vos filtres'}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sites.map(site => (
+            {sitesFiltres.map(site => (
               <div key={site.id}
                 className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden flex flex-col">
                 {/* Image */}
@@ -139,12 +262,9 @@ export default function SitePage() {
                   {site.imageUrl
                     ? <img src={site.imageUrl} alt={site.nom} className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-600">
-                        {site.type === 'boutique'
-                          ? <Store size={40} />
-                          : <Warehouse size={40} />}
+                        {site.type === 'boutique' ? <Store size={40} /> : <Warehouse size={40} />}
                       </div>
                   }
-                  {/* Badges */}
                   <div className="absolute top-2 left-2 flex gap-1.5">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-bold
                       ${site.type === 'boutique'
@@ -199,36 +319,29 @@ export default function SitePage() {
           <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md shadow-xl p-5">
             <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-4">Nouveau site</h2>
 
-            {/* Upload image */}
             <label className="block mb-4 cursor-pointer">
               <div className={`h-32 rounded-xl border-2 border-dashed flex flex-col items-center justify-center transition-colors
                 ${imagePreview ? 'border-transparent p-0 overflow-hidden' : 'border-gray-200 dark:border-gray-700 hover:border-indigo-400'}`}>
                 {imagePreview
                   ? <img src={imagePreview} alt="" className="w-full h-full object-cover rounded-xl" />
-                  : <>
-                      <ImagePlus size={24} className="text-gray-300 dark:text-gray-600 mb-1" />
-                      <p className="text-xs text-gray-400">Ajouter une photo</p>
-                    </>
+                  : <><ImagePlus size={24} className="text-gray-300 dark:text-gray-600 mb-1" /><p className="text-xs text-gray-400">Ajouter une photo</p></>
                 }
               </div>
               <input type="file" accept="image/*" className="hidden" onChange={onImageChange} />
             </label>
 
-            {/* Nom */}
             <input
               type="text" placeholder="Nom du site" value={nom}
               onChange={e => setNom(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
 
-            {/* Adresse */}
             <input
               type="text" placeholder="Adresse" value={adresse}
               onChange={e => setAdresse(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
 
-            {/* Type */}
             <div className="grid grid-cols-2 gap-2 mb-4">
               {(['boutique', 'depot'] as TypeSite[]).map(t => (
                 <button key={t} onClick={() => setType(t)}
