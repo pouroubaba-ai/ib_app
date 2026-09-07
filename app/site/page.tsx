@@ -350,6 +350,19 @@ export default function SitePage() {
               <input type="file" accept="image/*" className="hidden" onChange={onImageChange} />
             </label>
 
+            {/* Toggle type */}
+            <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-800 rounded-xl p-1 mb-3">
+              {(['boutique', 'depot'] as TypeSite[]).map(t => (
+                <button key={t} onClick={() => setType(t)}
+                  className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all
+                    ${type === t
+                      ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-gray-400 dark:text-gray-500'}`}>
+                  {t === 'boutique' ? 'Boutique' : 'Dépôt'}
+                </button>
+              ))}
+            </div>
+
             <input
               type="text" placeholder="Nom du site" value={nom}
               onChange={e => setNom(e.target.value)}
@@ -367,18 +380,6 @@ export default function SitePage() {
               onChange={e => setNumero(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              {(['boutique', 'depot'] as TypeSite[]).map(t => (
-                <button key={t} onClick={() => setType(t)}
-                  className={`py-2.5 rounded-xl text-sm font-medium border transition-colors
-                    ${type === t
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'}`}>
-                  {t === 'boutique' ? 'Boutique' : 'Dépôt'}
-                </button>
-              ))}
-            </div>
 
             {erreur && <p className="text-red-500 text-xs mb-3">{erreur}</p>}
 
