@@ -221,20 +221,41 @@ export default function OngletPartenaires({ siteId, userId }: Props) {
       </div>
 
       {/* Barre résumé */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 mb-4">
-        <div className="flex items-center justify-between mb-1">
-          <div>
-            <p className="text-xs font-bold uppercase text-gray-900 dark:text-gray-100">
-              {vue === 'fournisseurs' ? 'Dettes à régler' : 'Créances à recouvrer'}
-            </p>
-            <p className={`text-2xl font-bold mt-0.5 ${vue === 'fournisseurs' ? 'text-red-600' : 'text-orange-500'}`}>
-              {formatMontant(vue === 'fournisseurs' ? totalDette : totalCreance)}
+      {(() => {
+        const estFourn = vue === 'fournisseurs';
+        const total = partenaires.filter(p => estFourn ? p.rolesFournisseur : p.rolesClient)
+          .reduce((s, p) => s + (estFourn ? (p.dette || 0) + 0 : (p.creance || 0) + 0), 0);
+        const solde = estFourn ? totalDette : totalCreance;
+        // totalAchatsVentes = dette + versé = solde + versé
+        // On n'a pas encore "versé" en base, donc on affiche solde comme restant et 0 versé pour l'instant
+        const verse = 0;
+        const totalTransaction = solde + verse;
+        const pct = totalTransaction > 0 ? Math.min((verse / totalTransaction) * 100, 100) : 0;
+        return (
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 mb-4">
+            <div className="flex items-center justify-between mb-1">
+              <div>
+                <p className="text-xs font-bold uppercase text-gray-900 dark:text-gray-100">
+                  {estFourn ? 'Dettes à régler' : 'Créances à recouvrer'}
+                </p>
+                <p className={`text-2xl font-bold mt-0.5 ${estFourn ? 'text-red-600' : 'text-orange-500'}`}>
+                  {formatMontant(solde)}
+                </p>
+              </div>
+              <span className="text-xs text-gray-400 uppercase">{estFourn ? 'Achat' : 'Vente'}</span>
+            </div>
+            <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full mt-3 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${estFourn ? 'bg-red-500' : 'bg-green-500'}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">
+              Total {formatMontant(totalTransaction)} · Versé {formatMontant(verse)}
             </p>
           </div>
-          <span className="text-xs text-gray-400 uppercase">{vue === 'fournisseurs' ? 'Achat' : 'Vente'}</span>
-        </div>
-        <div className={`h-1.5 rounded-full mt-3 ${vue === 'fournisseurs' ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: '60%' }} />
-      </div>
+        );
+      })()}
 
       {/* Recherche */}
       <div className="relative mb-4">
