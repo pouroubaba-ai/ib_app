@@ -42,12 +42,14 @@ export default function SitePage() {
   const [tri, setTri] = useState<Tri | ''>('');
   const [showFiltre, setShowFiltre] = useState(false);
   const [showTri, setShowTri] = useState(false);
+  const [filtreTemp, setFiltreTemp] = useState<{ type: TypeSite | 'tout'; etat: EtatSite | 'tout' }>({ type: 'tout', etat: 'tout' });
 
   /* - Modal ajout - */
   const [showModal, setShowModal] = useState(false);
   const [nom, setNom] = useState('');
   const [type, setType] = useState<TypeSite>('boutique');
   const [adresse, setAdresse] = useState('');
+  const [numero, setNumero] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -89,7 +91,7 @@ export default function SitePage() {
   const filtreActif = filtreType !== 'tout' || filtreEtat !== 'tout';
 
   function ouvrirModal() {
-    setNom(''); setType('boutique'); setAdresse('');
+    setNom(''); setType('boutique'); setAdresse(''); setNumero('');
     setImageFile(null); setImagePreview(null); setErreur('');
     setShowModal(true);
   }
@@ -115,6 +117,7 @@ export default function SitePage() {
       await addDoc(collection(db, 'sites'), {
         userId: user!.uid,
         nom: nom.trim(),
+        numero: numero.trim(),
         type,
         etat: 'actif' as EtatSite,
         adresse: adresse.trim(),
@@ -172,44 +175,15 @@ export default function SitePage() {
           </div>
 
           {/* Filtre */}
-          <div className="relative">
-            <button onClick={() => { setShowFiltre(v => !v); setShowTri(false); }}
-              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors
-                ${filtreActif
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'}`}>
-              <SlidersHorizontal size={15} />
-              <span className="hidden sm:inline">Filtre</span>
-              {filtreActif && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-            </button>
-
-            {showFiltre && (
-              <div className="absolute right-0 top-12 z-20 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl p-4 w-56">
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Type</p>
-                {(['tout', 'boutique', 'depot'] as const).map(t => (
-                  <button key={t} onClick={() => setFiltreType(t)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm mb-1 transition-colors
-                      ${filtreType === t ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
-                    {t === 'tout' ? 'Tout' : t === 'boutique' ? 'Boutique' : 'Dépôt'}
-                  </button>
-                ))}
-                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2 mt-3">État</p>
-                {(['tout', 'actif', 'inactif'] as const).map(e => (
-                  <button key={e} onClick={() => setFiltreEtat(e)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm mb-1 transition-colors
-                      ${filtreEtat === e ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
-                    {e === 'tout' ? 'Tout' : e === 'actif' ? 'Actif' : 'Inactif'}
-                  </button>
-                ))}
-                {filtreActif && (
-                  <button onClick={() => { setFiltreType('tout'); setFiltreEtat('tout'); }}
-                    className="w-full mt-2 py-1.5 rounded-lg text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                    Réinitialiser
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+          <button onClick={() => { setFiltreTemp({ type: filtreType, etat: filtreEtat }); setShowFiltre(true); }}
+            className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors
+              ${filtreActif
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'}`}>
+            <SlidersHorizontal size={15} />
+            <span className="hidden sm:inline">Filtre</span>
+            {filtreActif && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+          </button>
 
           {/* Tri */}
           <div className="relative">
@@ -236,9 +210,9 @@ export default function SitePage() {
           </div>
         </div>
 
-        {/* Fermer dropdowns en cliquant ailleurs */}
-        {(showFiltre || showTri) && (
-          <div className="fixed inset-0 z-10" onClick={() => { setShowFiltre(false); setShowTri(false); }} />
+        {/* Fermer dropdown tri en cliquant ailleurs */}
+        {showTri && (
+          <div className="fixed inset-0 z-10" onClick={() => setShowTri(false)} />
         )}
 
         {/* Liste */}
@@ -313,6 +287,52 @@ export default function SitePage() {
         )}
       </div>
 
+      {/* Modal filtre */}
+      {showFiltre && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-sm shadow-xl p-5">
+            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-4">Filtrer</h2>
+
+            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Type</p>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {(['tout', 'boutique', 'depot'] as const).map(t => (
+                <button key={t} onClick={() => setFiltreTemp(prev => ({ ...prev, type: t }))}
+                  className={`py-2 rounded-xl text-sm font-medium border transition-colors
+                    ${filtreTemp.type === t
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'}`}>
+                  {t === 'tout' ? 'Tout' : t === 'boutique' ? 'Boutique' : 'Dépôt'}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">État</p>
+            <div className="grid grid-cols-3 gap-2 mb-6">
+              {(['tout', 'actif', 'inactif'] as const).map(e => (
+                <button key={e} onClick={() => setFiltreTemp(prev => ({ ...prev, etat: e }))}
+                  className={`py-2 rounded-xl text-sm font-medium border transition-colors
+                    ${filtreTemp.etat === e
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'}`}>
+                  {e === 'tout' ? 'Tout' : e === 'actif' ? 'Actif' : 'Inactif'}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => { setFiltreType('tout'); setFiltreEtat('tout'); setShowFiltre(false); }}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400">
+                Réinitialiser
+              </button>
+              <button onClick={() => { setFiltreType(filtreTemp.type); setFiltreEtat(filtreTemp.etat); setShowFiltre(false); }}
+                className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition-colors">
+                Appliquer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal création */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -339,6 +359,12 @@ export default function SitePage() {
             <input
               type="text" placeholder="Adresse" value={adresse}
               onChange={e => setAdresse(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+
+            <input
+              type="text" placeholder="Numéro de téléphone" value={numero}
+              onChange={e => setNumero(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
 
