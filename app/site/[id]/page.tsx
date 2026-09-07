@@ -5,13 +5,13 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth-context';
 import { useParams, useRouter } from 'next/navigation';
 import {
-  ArrowLeft, Settings, Users, Handshake, ShoppingCart,
+  ArrowLeft, LayoutDashboard, Users, Handshake,
   RefreshCw, Package, ClipboardList, Store, Warehouse, Loader2,
 } from 'lucide-react';
 
 type TypeSite = 'boutique' | 'depot';
 type EtatSite = 'actif' | 'inactif';
-type Onglet = 'configuration' | 'employes' | 'partenaires' | 'vente' | 'cycle-vente' | 'inventaire' | 'audit';
+type Onglet = 'dashboard' | 'partenaires' | 'employes' | 'cycle-vente' | 'inventaire' | 'audit';
 
 interface Site {
   id: string;
@@ -26,13 +26,12 @@ interface Site {
 }
 
 const onglets: { key: Onglet; label: string; icon: React.ElementType }[] = [
-  { key: 'configuration', label: 'Configuration', icon: Settings },
-  { key: 'employes',      label: 'Employés',      icon: Users },
-  { key: 'partenaires',   label: 'Partenaires',   icon: Handshake },
-  { key: 'vente',         label: 'Vente',         icon: ShoppingCart },
-  { key: 'cycle-vente',   label: 'Cycle de vente',icon: RefreshCw },
-  { key: 'inventaire',    label: 'Inventaire',    icon: Package },
-  { key: 'audit',         label: 'Audit',         icon: ClipboardList },
+  { key: 'dashboard',   label: 'Dashboard',      icon: LayoutDashboard },
+  { key: 'partenaires', label: 'Partenaires',    icon: Handshake },
+  { key: 'employes',    label: 'Employés',       icon: Users },
+  { key: 'cycle-vente', label: 'Cycle de vente', icon: RefreshCw },
+  { key: 'inventaire',  label: 'Inventaire',     icon: Package },
+  { key: 'audit',       label: 'Audit',          icon: ClipboardList },
 ];
 
 export default function SiteFichePage() {
@@ -43,7 +42,7 @@ export default function SiteFichePage() {
 
   const [site, setSite] = useState<Site | null>(null);
   const [loading, setLoading] = useState(true);
-  const [onglet, setOnglet] = useState<Onglet>('configuration');
+  const [onglet, setOnglet] = useState<Onglet>('dashboard');
 
   useEffect(() => {
     if (!user || !siteId) return;
