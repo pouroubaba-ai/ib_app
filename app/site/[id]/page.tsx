@@ -100,7 +100,7 @@ export default function SiteFichePage() {
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all shrink-0
                   ${actif
                     ? 'bg-indigo-600 text-white'
-                    : 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-400 dark:text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 hover:text-indigo-600 dark:hover:text-indigo-300'}`}>
+                    : 'text-indigo-400 dark:text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-300'}`}>
                 <Icon size={14} />
                 {o.label}
               </button>
