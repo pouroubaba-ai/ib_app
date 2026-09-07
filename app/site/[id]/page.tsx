@@ -6,12 +6,12 @@ import { useAuth } from '@/lib/auth-context';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, LayoutDashboard, Users, Handshake,
-  RefreshCw, Package, ClipboardList, Store, Warehouse, Loader2,
+  RefreshCw, Package, ClipboardList, Settings, Store, Warehouse, Loader2,
 } from 'lucide-react';
 
 type TypeSite = 'boutique' | 'depot';
 type EtatSite = 'actif' | 'inactif';
-type Onglet = 'dashboard' | 'partenaires' | 'employes' | 'cycle-vente' | 'inventaire' | 'audit';
+type Onglet = 'dashboard' | 'partenaires' | 'employes' | 'cycle-vente' | 'inventaire' | 'audit' | 'configuration';
 
 interface Site {
   id: string;
@@ -31,7 +31,8 @@ const onglets: { key: Onglet; label: string; icon: React.ElementType }[] = [
   { key: 'employes',    label: 'Employés',       icon: Users },
   { key: 'cycle-vente', label: 'Cycle de vente', icon: RefreshCw },
   { key: 'inventaire',  label: 'Inventaire',     icon: Package },
-  { key: 'audit',       label: 'Audit',          icon: ClipboardList },
+  { key: 'audit',          label: 'Audit',         icon: ClipboardList },
+  { key: 'configuration',  label: 'Configuration', icon: Settings },
 ];
 
 export default function SiteFichePage() {
