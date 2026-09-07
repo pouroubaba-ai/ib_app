@@ -8,6 +8,7 @@ import {
   ArrowLeft, LayoutDashboard, Users, Handshake,
   RefreshCw, Package, ClipboardList, Settings, Store, Warehouse, Loader2,
 } from 'lucide-react';
+import OngletPartenaires from './components/OngletPartenaires';
 
 type TypeSite = 'boutique' | 'depot';
 type EtatSite = 'actif' | 'inactif';
@@ -109,10 +110,15 @@ export default function SiteFichePage() {
         </div>
 
         {/* Contenu */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-6 min-h-64 flex items-center justify-center">
-          <p className="text-gray-300 dark:text-gray-600 text-sm">
-            {onglets.find(o => o.key === onglet)?.label} — à venir
-          </p>
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-4 sm:p-6">
+          {onglet === 'partenaires' && <OngletPartenaires siteId={siteId} userId={user!.uid} />}
+          {onglet !== 'partenaires' && (
+            <div className="min-h-64 flex items-center justify-center">
+              <p className="text-gray-300 dark:text-gray-600 text-sm">
+                {onglets.find(o => o.key === onglet)?.label} — à venir
+              </p>
+            </div>
+          )}
         </div>
 
       </div>
