@@ -224,7 +224,7 @@ export default function OngletPartenaires({ siteId, userId }: Props) {
       <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 mb-4">
         <div className="flex items-center justify-between mb-1">
           <div>
-            <p className={`text-xs font-bold uppercase ${vue === 'fournisseurs' ? 'text-red-500' : 'text-orange-500'}`}>
+            <p className="text-xs font-bold uppercase text-gray-900 dark:text-gray-100">
               {vue === 'fournisseurs' ? 'Dettes à régler' : 'Créances à recouvrer'}
             </p>
             <p className={`text-2xl font-bold mt-0.5 ${vue === 'fournisseurs' ? 'text-red-600' : 'text-orange-500'}`}>
