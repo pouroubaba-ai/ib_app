@@ -5,11 +5,14 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth-context';
 import AppLayout from '@/components/AppLayout';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, MapPin, Phone, Store, Warehouse, Loader2 } from 'lucide-react';
+import {
+  ArrowLeft, Settings, Users, Handshake, ShoppingCart,
+  RefreshCw, Package, ClipboardList, Store, Warehouse, Loader2,
+} from 'lucide-react';
 
 type TypeSite = 'boutique' | 'depot';
 type EtatSite = 'actif' | 'inactif';
-type Onglet = 'partenaire' | 'employe' | 'inventaire';
+type Onglet = 'configuration' | 'employes' | 'partenaires' | 'vente' | 'cycle-vente' | 'inventaire' | 'audit';
 
 interface Site {
   id: string;
@@ -23,10 +26,14 @@ interface Site {
   remunerationMensuelle: number;
 }
 
-const onglets: { key: Onglet; label: string }[] = [
-  { key: 'partenaire', label: 'Partenaire' },
-  { key: 'employe', label: 'Employé' },
-  { key: 'inventaire', label: 'Inventaire' },
+const onglets: { key: Onglet; label: string; icon: React.ElementType }[] = [
+  { key: 'configuration', label: 'Configuration', icon: Settings },
+  { key: 'employes',      label: 'Employés',      icon: Users },
+  { key: 'partenaires',   label: 'Partenaires',   icon: Handshake },
+  { key: 'vente',         label: 'Vente',         icon: ShoppingCart },
+  { key: 'cycle-vente',   label: 'Cycle de vente',icon: RefreshCw },
+  { key: 'inventaire',    label: 'Inventaire',    icon: Package },
+  { key: 'audit',         label: 'Audit',         icon: ClipboardList },
 ];
 
 export default function SiteFichePage() {
@@ -37,7 +44,7 @@ export default function SiteFichePage() {
 
   const [site, setSite] = useState<Site | null>(null);
   const [loading, setLoading] = useState(true);
-  const [onglet, setOnglet] = useState<Onglet>('partenaire');
+  const [onglet, setOnglet] = useState<Onglet>('configuration');
 
   useEffect(() => {
     if (!user || !siteId) return;
@@ -63,73 +70,51 @@ export default function SiteFichePage() {
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
 
-        {/* Retour */}
+        {/* Retour avec nom + badge */}
         <button onClick={() => router.push('/site')}
-          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 mb-4 transition-colors">
-          <ArrowLeft size={15} /> Sites
+          className="flex items-center gap-2 mb-5 group">
+          <ArrowLeft size={15} className="text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200 transition-colors" />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
+            {site.nom}
+          </span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-bold
+            ${site.type === 'boutique'
+              ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
+              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'}`}>
+            {site.type === 'boutique' ? 'Boutique' : 'Dépôt'}
+          </span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-bold
+            ${site.etat === 'actif'
+              ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+              : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'}`}>
+            {site.etat === 'actif' ? 'Actif' : 'Inactif'}
+          </span>
         </button>
 
-        {/* Header site */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden mb-4">
-          <div className="h-40 bg-gray-100 dark:bg-gray-800 relative">
-            {site.imageUrl
-              ? <img src={site.imageUrl} alt={site.nom} className="w-full h-full object-cover" />
-              : <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-600">
-                  {site.type === 'boutique' ? <Store size={48} /> : <Warehouse size={48} />}
-                </div>
-            }
-            <div className="absolute top-3 left-3 flex gap-1.5">
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold
-                ${site.type === 'boutique'
-                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
-                  : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'}`}>
-                {site.type === 'boutique' ? 'Boutique' : 'Dépôt'}
-              </span>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold
-                ${site.etat === 'actif'
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
-                  : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'}`}>
-                {site.etat === 'actif' ? 'Actif' : 'Inactif'}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-4">
-            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{site.nom}</h1>
-            <div className="flex flex-wrap gap-3 mt-1.5">
-              <p className="text-sm text-gray-400 flex items-center gap-1">
-                <MapPin size={13} /> {site.adresse}
-              </p>
-              {site.numero && (
-                <p className="text-sm text-gray-400 flex items-center gap-1">
-                  <Phone size={13} /> {site.numero}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* Onglets */}
-        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 mb-4">
-          {onglets.map(o => (
-            <button key={o.key} onClick={() => setOnglet(o.key)}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all
-                ${onglet === o.key
-                  ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                  : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}>
-              {o.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 border-b border-gray-100 dark:border-gray-800">
+          {onglets.map(o => {
+            const Icon = o.icon;
+            const actif = onglet === o.key;
+            return (
+              <button key={o.key} onClick={() => setOnglet(o.key)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all shrink-0
+                  ${actif
+                    ? 'bg-indigo-600 text-white'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                <Icon size={14} />
+                {o.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Contenu onglets */}
+        {/* Contenu */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-6 min-h-64 flex items-center justify-center">
           <p className="text-gray-300 dark:text-gray-600 text-sm">
-            {onglet === 'partenaire' && 'Partenaires du site — à venir'}
-            {onglet === 'employe' && 'Employés du site — à venir'}
-            {onglet === 'inventaire' && 'Inventaire du site — à venir'}
+            {onglets.find(o => o.key === onglet)?.label} — à venir
           </p>
         </div>
 
