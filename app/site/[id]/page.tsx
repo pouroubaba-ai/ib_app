@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth-context';
-import AppLayout from '@/components/AppLayout';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Settings, Users, Handshake, ShoppingCart,
@@ -55,22 +54,20 @@ export default function SiteFichePage() {
   }, [user, siteId]);
 
   if (loading) return (
-    <AppLayout>
-      <div className="flex justify-center py-20">
-        <Loader2 size={28} className="animate-spin text-indigo-500" />
-      </div>
-    </AppLayout>
+    <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
+      <Loader2 size={28} className="animate-spin text-indigo-500" />
+    </div>
   );
 
   if (!site) return (
-    <AppLayout>
-      <div className="text-center py-20 text-gray-400">Site introuvable.</div>
-    </AppLayout>
+    <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 text-gray-400">
+      Site introuvable.
+    </div>
   );
 
   return (
-    <AppLayout>
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+      <div className="max-w-5xl mx-auto p-4 sm:p-6">
 
         {/* Retour avec nom + badge */}
         <button onClick={() => router.push('/site')}
@@ -119,6 +116,6 @@ export default function SiteFichePage() {
         </div>
 
       </div>
-    </AppLayout>
+    </div>
   );
 }
