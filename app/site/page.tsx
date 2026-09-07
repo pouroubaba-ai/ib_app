@@ -1,0 +1,261 @@
+'use client';
+import { useEffect, useState } from 'react';
+import {
+  collection, query, where, getDocs, addDoc, serverTimestamp,
+} from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '@/lib/firebase';
+import { useAuth } from '@/lib/auth-context';
+import AppLayout from '@/components/AppLayout';
+import { formatMontant } from '@/lib/format';
+import { Plus, MapPin, Users, BadgeCheck, ImagePlus, Loader2, Store, Warehouse } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+type TypeSite = 'boutique' | 'depot';
+type EtatSite = 'actif' | 'inactif';
+
+interface Site {
+  id: string;
+  nom: string;
+  type: TypeSite;
+  etat: EtatSite;
+  adresse: string;
+  imageUrl?: string;
+  nbEmployes: number;
+  remunerationMensuelle: number;
+}
+
+export default function SitePage() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [sites, setSites] = useState<Site[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  /* - Modal ajout - */
+  const [showModal, setShowModal] = useState(false);
+  const [nom, setNom] = useState('');
+  const [type, setType] = useState<TypeSite>('boutique');
+  const [adresse, setAdresse] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [erreur, setErreur] = useState('');
+
+  useEffect(() => {
+    if (!user) return;
+    fetchSites();
+  }, [user]);
+
+  async function fetchSites() {
+    setLoading(true);
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'sites'),
+        where('userId', '==', user!.uid),
+      ));
+      setSites(snap.docs.map(d => ({ id: d.id, ...d.data() } as Site)));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function ouvrirModal() {
+    setNom(''); setType('boutique'); setAdresse('');
+    setImageFile(null); setImagePreview(null); setErreur('');
+    setShowModal(true);
+  }
+
+  function onImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
+  async function creerSite() {
+    if (!nom.trim()) { setErreur('Nom requis.'); return; }
+    if (!adresse.trim()) { setErreur('Adresse requise.'); return; }
+    setSaving(true); setErreur('');
+    try {
+      let imageUrl = '';
+      if (imageFile) {
+        const storageRef = ref(storage, `sites/${user!.uid}/${Date.now()}_${imageFile.name}`);
+        await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(storageRef);
+      }
+      await addDoc(collection(db, 'sites'), {
+        userId: user!.uid,
+        nom: nom.trim(),
+        type,
+        etat: 'actif' as EtatSite,
+        adresse: adresse.trim(),
+        imageUrl,
+        nbEmployes: 0,
+        remunerationMensuelle: 0,
+        createdAt: serverTimestamp(),
+      });
+      setShowModal(false);
+      fetchSites();
+    } catch (e: any) {
+      setErreur(e?.message ?? 'Erreur lors de la création.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <AppLayout>
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Sites</h1>
+            <p className="text-sm text-gray-400 mt-0.5">{sites.length} site{sites.length > 1 ? 's' : ''}</p>
+          </div>
+          <button onClick={ouvrirModal}
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-colors">
+            <Plus size={16} /> Nouveau site
+          </button>
+        </div>
+
+        {/* Liste */}
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 size={28} className="animate-spin text-indigo-500" />
+          </div>
+        ) : sites.length === 0 ? (
+          <div className="text-center py-20 text-gray-400">
+            <MapPin size={40} className="mx-auto mb-3 opacity-30" />
+            <p className="font-medium">Aucun site créé</p>
+            <p className="text-sm mt-1">Cliquez sur "Nouveau site" pour commencer</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sites.map(site => (
+              <div key={site.id}
+                className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden flex flex-col">
+                {/* Image */}
+                <div className="h-40 bg-gray-100 dark:bg-gray-800 relative">
+                  {site.imageUrl
+                    ? <img src={site.imageUrl} alt={site.nom} className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center text-gray-300 dark:text-gray-600">
+                        {site.type === 'boutique'
+                          ? <Store size={40} />
+                          : <Warehouse size={40} />}
+                      </div>
+                  }
+                  {/* Badges */}
+                  <div className="absolute top-2 left-2 flex gap-1.5">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold
+                      ${site.type === 'boutique'
+                        ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'}`}>
+                      {site.type === 'boutique' ? 'Boutique' : 'Dépôt'}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold
+                      ${site.etat === 'actif'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'}`}>
+                      {site.etat === 'actif' ? 'Actif' : 'Inactif'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Infos */}
+                <div className="p-4 flex flex-col flex-1">
+                  <p className="font-bold text-gray-900 dark:text-gray-100 text-base">{site.nom}</p>
+                  <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                    <MapPin size={11} /> {site.adresse}
+                  </p>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2.5">
+                      <p className="text-xs text-gray-400 flex items-center gap-1"><Users size={11} /> Employés</p>
+                      <p className="font-bold text-gray-900 dark:text-gray-100 mt-0.5">{site.nbEmployes}</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2.5">
+                      <p className="text-xs text-gray-400 flex items-center gap-1"><BadgeCheck size={11} /> Rémunération</p>
+                      <p className="font-bold text-gray-900 dark:text-gray-100 mt-0.5 text-sm">
+                        {formatMontant(site.remunerationMensuelle)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => router.push(`/site/${site.id}`)}
+                    className="mt-4 w-full py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                    Gérer le site
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Modal création */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md shadow-xl p-5">
+            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-4">Nouveau site</h2>
+
+            {/* Upload image */}
+            <label className="block mb-4 cursor-pointer">
+              <div className={`h-32 rounded-xl border-2 border-dashed flex flex-col items-center justify-center transition-colors
+                ${imagePreview ? 'border-transparent p-0 overflow-hidden' : 'border-gray-200 dark:border-gray-700 hover:border-indigo-400'}`}>
+                {imagePreview
+                  ? <img src={imagePreview} alt="" className="w-full h-full object-cover rounded-xl" />
+                  : <>
+                      <ImagePlus size={24} className="text-gray-300 dark:text-gray-600 mb-1" />
+                      <p className="text-xs text-gray-400">Ajouter une photo</p>
+                    </>
+                }
+              </div>
+              <input type="file" accept="image/*" className="hidden" onChange={onImageChange} />
+            </label>
+
+            {/* Nom */}
+            <input
+              type="text" placeholder="Nom du site" value={nom}
+              onChange={e => setNom(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+
+            {/* Adresse */}
+            <input
+              type="text" placeholder="Adresse" value={adresse}
+              onChange={e => setAdresse(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+
+            {/* Type */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {(['boutique', 'depot'] as TypeSite[]).map(t => (
+                <button key={t} onClick={() => setType(t)}
+                  className={`py-2.5 rounded-xl text-sm font-medium border transition-colors
+                    ${type === t
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'}`}>
+                  {t === 'boutique' ? 'Boutique' : 'Dépôt'}
+                </button>
+              ))}
+            </div>
+
+            {erreur && <p className="text-red-500 text-xs mb-3">{erreur}</p>}
+
+            <div className="flex gap-3">
+              <button onClick={() => setShowModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300">
+                Annuler
+              </button>
+              <button onClick={creerSite} disabled={saving}
+                className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold flex items-center justify-center gap-2 transition-colors">
+                {saving ? <><Loader2 size={15} className="animate-spin" /> Création…</> : 'Créer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </AppLayout>
+  );
+}
